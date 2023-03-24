@@ -9,19 +9,25 @@ repository = "https://github.com/yaleman/splunk-rs"
 homepage = "https://github.com/yaleman/splunk-rs"
 
 [features]
-search = ["dep:reqwest"]
-default = []
-hec = ["dep:reqwest"]
+test_ci = [] # Used when in CI mode, to skip tests
+search = []
+default = ["next"]
+hec = []
 next = ["search", "hec"]
+xml_raw = [] # This enables functions which we haven't worked out how to parse the XML...
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 lazy_static = "1.4.0"
-reqwest = { version = "0.11.15", features = ["serde_json"], optional=true }
+reqwest = { version = "0.11.15", features = ["json"]}
+serde = { version = "1.0.158", features = ["derive"] }
+serde-xml-rs = "0.6.0"
 serde_json = "1.0.94"
+sxd-document = "0.3.2"
+sxd-xpath = "0.4.2"
+tokio = { version = "1.26.0", features = ["macros"]}
 
 [dev-dependencies]
 tokio = { version = "1.26.0", features = ["rt", "macros"] }
-reqwest = { version = "0.11.15", features = ["serde_json"] }
 

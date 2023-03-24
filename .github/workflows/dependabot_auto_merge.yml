@@ -6,6 +6,7 @@ name: Dependabot auto-merge and approve
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   dependabot:
