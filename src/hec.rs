@@ -23,8 +23,7 @@ impl Default for HecClient {
                 port: 8088,
                 use_tls: true,
                 validate_ssl: true,
-                username: None,
-                password: None,
+                auth_method: crate::search::AuthenticationMethod::Unknown,
             },
 
             token: "".to_string(),

@@ -36,8 +36,10 @@ pub fn get_serverconfig(configtype: TestServerConfig) -> Result<ServerConfig, St
     Ok(ServerConfig {
         hostname,
         port,
-        username: Some(env::var("SPLUNK_USERNAME").unwrap()),
-        password: Some(env::var("SPLUNK_PASSWORD").unwrap()),
+        auth_method: crate::search::AuthenticationMethod::Basic {
+            username: env::var("SPLUNK_USERNAME").unwrap(),
+            password: env::var("SPLUNK_PASSWORD").unwrap(),
+        },
         ..Default::default()
     })
 }

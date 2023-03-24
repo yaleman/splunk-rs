@@ -4,7 +4,8 @@
 
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use reqwest::Response;
+use serde::{Deserialize, Serialize};
 
 use super::SplunkClient;
 
@@ -47,6 +48,33 @@ impl ToString for AdHocSearchLevel {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub enum SearchOutputMode {
+    Atom,
+    Csv,
+    Json,
+    JsonCols,
+    JsonRows,
+    Raw,
+    Xml,
+}
+
+impl ToString for SearchOutputMode {
+    fn to_string(&self) -> String {
+        match self {
+            SearchOutputMode::Json => "json",
+            SearchOutputMode::Atom => "atom",
+            SearchOutputMode::Csv => "csv",
+            SearchOutputMode::JsonCols => "json_cols",
+            SearchOutputMode::JsonRows => "json_rows",
+            SearchOutputMode::Raw => "raw",
+            SearchOutputMode::Xml => "xml",
+        }
+        .to_string()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct SearchJobBuilder {
     query: String,
@@ -59,6 +87,7 @@ pub struct SearchJobBuilder {
     auto_cancel: u32,
     auto_finalize_ec: u32,
     auto_pause: u32,
+    output_mode: SearchOutputMode,
     /// Custom parameter
     custom: u32,
     /// Indicates whether lookups should be applied to events.
@@ -81,13 +110,14 @@ impl Default for SearchJobBuilder {
             query: "".to_string(),
             count: Some(10000),
             earliest_time: "-24h".to_string(),
-            latest_time: "now()".to_string(),
+            latest_time: "now".to_string(),
             fields: vec![],
             adhoc_search_level: AdHocSearchLevel::Fast,
             allow_partial_results: true,
             auto_cancel: 0,
             auto_finalize_ec: 0,
             auto_pause: 0,
+            output_mode: SearchOutputMode::Json,
             custom: 0,
             enable_lookups: true,
             exec_mode: SearchExecMode::Normal,
@@ -100,32 +130,45 @@ impl Default for SearchJobBuilder {
 }
 
 #[derive(Deserialize)]
-struct XMLResponseWithSid {
-    response: XMLResponseSid
+pub struct XMLResponseWithSid {
+    pub response: XMLResponseSid,
 }
 
 #[derive(Deserialize)]
-struct XMLResponseSid {
-    sid: String,
+pub struct XMLResponseSid {
+    pub sid: String,
 }
 
-
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SearchResult {
+    preview: Option<bool>,
+    offset: usize,
+    lastrow: Option<bool>,
+    result: serde_json::Value,
+}
 
 impl SearchJobBuilder {
     /// Consume the builder, start the job and return a search job object
+    ///
+    /// Options <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fv2.2Fjobs.2Fexport>
     pub async fn create(
         self,
         client: &mut SplunkClient,
     ) -> Result<SearchJob, SearchJobBuilderError> {
-        let endpoint = "/services/search/jobs/v2/export";
+        // let endpoint = "/services/search/jobs/v2/export";
+        let endpoint = "/services/search/jobs/export";
         let mut payload: HashMap<&str, String> = HashMap::new();
 
-        // TODO: set the payload
+        self.extra_options.iter().for_each(|(key, value)| {
+            payload.insert(key.as_str(), value.to_owned());
+        });
+
         payload.insert("adhoc_search_level", self.adhoc_search_level.to_string());
         payload.insert(
             "allow_partial_results",
             self.allow_partial_results.to_string().to_ascii_lowercase(),
         );
+        payload.insert("output_mode", self.output_mode.to_string());
         payload.insert("auto_cancel", format!("{}", self.auto_cancel));
         payload.insert("auto_finalize_ec", format!("{}", self.auto_finalize_ec));
         payload.insert("auto_pause", format!("{}", self.auto_pause));
@@ -149,29 +192,13 @@ impl SearchJobBuilder {
             payload.insert("id", id);
         }
 
-        self.extra_options.iter().for_each(|(key, value)| {
-            payload.insert(key.as_str(), value.to_owned());
-        });
+        // time to include the search
+        payload.insert("search", self.query.clone());
 
         let result = match client.do_post(endpoint, payload).await {
             Err(err) => return Err(SearchJobBuilderError::CreateFailed { message: err }),
             Ok(val) => val,
         };
-
-        eprintln!("Result: {result:#?}");
-
-        let res_text = result.text().await.map_err(|e| format!("{e:?}")).unwrap();
-
-        let sid_getter: XMLResponseSid = match serde_xml_rs::from_str(&res_text) {
-            Ok(val) => val,
-            Err(_) => {
-                panic!();
-                // return Err(format!("{err:?}"))
-            }
-        };
-
-
-        let sid = sid_getter.sid;
 
         Ok(SearchJob {
             query: self.query,
@@ -180,7 +207,8 @@ impl SearchJobBuilder {
             latest_time: self.latest_time,
             fields: self.fields,
             exec_mode: self.exec_mode,
-            sid,
+            sid: None,
+            creation_response: result,
         })
     }
 
@@ -205,12 +233,20 @@ pub struct SearchJob {
     pub earliest_time: String,
     pub latest_time: String,
     pub fields: Vec<String>,
-    pub sid: String,
+    pub sid: Option<String>,
+    pub creation_response: Response,
+}
+
+#[allow(unused_macros)]
+macro_rules! get_lines {
+    ($stream:expr) => {
+        StreamReader::new($stream.map_err(convert_err)).lines()
+    };
 }
 
 impl SearchJob {
     /// Defaults to 10000 results, last 24 hours -> now(),
-    pub fn new(query: impl Into<String>) -> SearchJobBuilder {
+    pub fn create(query: impl Into<String>) -> SearchJobBuilder {
         SearchJobBuilder {
             query: query.into(),
             ..Default::default()

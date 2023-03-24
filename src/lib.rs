@@ -3,6 +3,7 @@
 use std::str::FromStr;
 
 use reqwest::Url;
+use search::AuthenticationMethod;
 use serde::{Deserialize, Serialize};
 
 #[macro_use]
@@ -15,19 +16,21 @@ extern crate tokio;
 #[cfg(feature = "hec")]
 pub mod hec;
 #[cfg(feature = "search")]
+#[macro_use]
 pub mod search;
 
 #[cfg(debug_assertions)]
 mod tests;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServerConfig {
     pub hostname: String,
     pub port: u16,
     validate_ssl: bool,
     use_tls: bool,
-    username: Option<String>,
-    password: Option<String>
+    auth_method: AuthenticationMethod,
+    // username: Option<String>,
+    // password: Option<String>
 }
 
 impl Default for ServerConfig {
@@ -37,8 +40,7 @@ impl Default for ServerConfig {
             port: 8089,
             validate_ssl: true,
             use_tls: true,
-            username: None,
-            password: None,
+            auth_method: AuthenticationMethod::Unknown,
         }
     }
 }

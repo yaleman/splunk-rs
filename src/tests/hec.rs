@@ -14,11 +14,9 @@ async fn test_hec_endpoint_health() -> Result<(), String> {
     Ok(())
 }
 
-#[cfg_attr(feature="test_ci", ignore)]
+#[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn test_hec_endpoint_health_ack() -> Result<(), String> {
-
-
     use crate::hec::HecClient;
 
     let client = HecClient {

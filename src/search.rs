@@ -8,11 +8,12 @@ use std::collections::HashMap;
 
 use crate::ServerConfig;
 
-mod searchjob;
+#[macro_use]
+pub mod searchjob;
 
-pub use searchjob::SearchJob;
+pub use searchjob::{SearchJob, SearchResult};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum AuthenticationMethod {
     Basic { username: String, password: String },
     Token { token: String },
@@ -29,20 +30,17 @@ pub enum AuthenticatedSessionMode {
 #[derive(Debug, Deserialize, Serialize)]
 /// Client for splunk enterprise/cloud API things, login, search, manipulate config items etc.
 pub struct SplunkClient {
-    //TODO: remove this pub?
     #[serde(flatten)]
     pub serverconfig: ServerConfig,
-    auth_method: AuthenticationMethod,
     pub auth_session_mode: AuthenticatedSessionMode,
     #[serde(skip)]
     client: Client,
 }
 
-impl SplunkClient {
-    pub fn new(username: String, password: String) -> Self {
+impl Default for SplunkClient {
+    fn default() -> Self {
         Self {
             serverconfig: ServerConfig::default(),
-            auth_method: AuthenticationMethod::Basic { username, password },
             auth_session_mode: AuthenticatedSessionMode::Unset,
             client: Client::new(),
         }
@@ -50,18 +48,35 @@ impl SplunkClient {
 }
 
 impl SplunkClient {
+    pub fn with_config(self, serverconfig: ServerConfig) -> Self {
+        Self {
+            serverconfig,
+            ..self
+        }
+    }
     /// Make a POST request
     pub async fn do_post(
         &mut self,
         endpoint: &str,
         payload: HashMap<&str, String>,
     ) -> Result<Response, String> {
-        self.client
+        let req = self
+            .client
             .post(self.serverconfig.get_url(endpoint).unwrap())
-            .form(&payload)
-            .send()
-            .await
-            .map_err(|e| format!("{e:?}"))
+            .form(&payload);
+
+        let req = match &self.serverconfig.auth_method {
+            AuthenticationMethod::Basic { username, password } => {
+                req.basic_auth(username, Some(password))
+            }
+            AuthenticationMethod::Token { token: _ } => todo!(),
+            AuthenticationMethod::Unknown => todo!(),
+        };
+
+        eprintln!("About to post this: {req:#?}");
+        eprintln!("About to post this: {:#?}", payload);
+
+        req.send().await.map_err(|e| format!("{e:?}"))
     }
 
     /// Make a GET request, tries to pass the authentication automagically
@@ -93,7 +108,7 @@ impl SplunkClient {
 
         let mut payload: HashMap<&str, String> = HashMap::new();
 
-        match &self.auth_method {
+        match &self.serverconfig.auth_method {
             AuthenticationMethod::Basic { username, password } => {
                 // request.basic_auth(username, Some(password)),
                 payload.insert("username", username.to_owned());
