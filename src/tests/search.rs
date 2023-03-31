@@ -2,7 +2,9 @@
 #[cfg_attr(feature = "test_ci", ignore)]
 async fn test_search_login() -> Result<(), String> {
     use crate::search::SplunkClient;
-    let serverconfig = crate::tests::get_serverconfig(crate::tests::TestServerConfig::Api)?;
+    use crate::{get_serverconfig, ServerConfigType};
+
+    let serverconfig = get_serverconfig(ServerConfigType::Api)?;
 
     eprintln!("{:?}", serverconfig);
 
@@ -17,11 +19,12 @@ async fn test_search_login() -> Result<(), String> {
 async fn test_search_execution() -> Result<(), String> {
     use crate::search::SearchJob;
     use crate::search::SplunkClient;
+    use crate::{get_serverconfig, ServerConfigType};
     use futures::stream::TryStreamExt; // for map_err
     use tokio::io::AsyncBufReadExt;
     use tokio_util::io::StreamReader;
 
-    let serverconfig = crate::tests::get_serverconfig(crate::tests::TestServerConfig::Api)?;
+    let serverconfig = get_serverconfig(ServerConfigType::Api)?;
     println!("{:#?}", serverconfig);
 
     let mut client = SplunkClient::default().with_config(serverconfig);

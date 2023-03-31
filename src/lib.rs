@@ -1,5 +1,6 @@
 //! Placeholder for now.
 
+use std::env;
 use std::error::Error;
 use std::str::FromStr;
 
@@ -87,6 +88,18 @@ impl ServerConfig {
         self
     }
 
+    /// Get the token from the auth method, if it exists
+    pub fn token(&self) -> Option<String> {
+        match &self.auth_method {
+            AuthenticationMethod::Basic {
+                username: _,
+                password,
+            } => Some(password.to_owned()),
+            AuthenticationMethod::Token { token } => Some(token.to_owned()),
+            AuthenticationMethod::Unknown => None,
+        }
+    }
+
     pub fn with_username_password(mut self, username: String, password: String) -> Self {
         self.auth_method = AuthenticationMethod::Basic { username, password };
         self
@@ -100,13 +113,62 @@ impl ServerConfig {
         todo!();
     }
 
+    /// Set the port
     pub fn with_port(mut self, port: u16) -> Self {
         self.port = port;
         self
     }
 
+    /// Set the hostname
+    pub fn with_hostname(mut self, hostname: String) -> Self {
+        self.hostname = hostname;
+        self
+    }
+
+    /// Do we verify TLS on send?
     pub fn with_verify_tls(mut self, verify_tls: bool) -> Self {
         self.verify_tls = verify_tls;
         self
     }
+}
+
+/// This is just used in get_serverconfig so you can say "I need a HEC or I need an API one!"
+pub enum ServerConfigType {
+    Hec,
+    Api,
+}
+
+pub fn get_serverconfig(configtype: ServerConfigType) -> Result<ServerConfig, String> {
+    let env_prefix = match configtype {
+        ServerConfigType::Hec => "SPLUNK_HEC_",
+        ServerConfigType::Api => "SPLUNK_API_",
+    };
+
+    let hostname = match env::var(format!("{env_prefix}HOSTNAME")) {
+        Ok(val) => val,
+        Err(_) => {
+            let error = format!("Please ensure env var {env_prefix}HOSTNAME is set");
+            eprintln!("{}", error);
+            return Err(error);
+        }
+    };
+    let port = match env::var(format!("{env_prefix}PORT")) {
+        Ok(val) => val,
+        Err(_) => 8089.to_string(),
+    };
+    let port: u16 = port.parse::<u16>().unwrap();
+
+    let config = ServerConfig::new(hostname).with_port(port);
+    let config = match configtype {
+        ServerConfigType::Hec => {
+            let token = env::var(format!("{env_prefix}TOKEN"))
+                .expect("Couldn't get SPLUNK_HEC_TOKEN env var");
+            config.with_token(token)
+        }
+        ServerConfigType::Api => config.with_username_password(
+            env::var("SPLUNK_USERNAME").expect("Couldn't get SPLUNK_USERNAME env var!"),
+            env::var("SPLUNK_PASSWORD").expect("Couldn't get SPLUNK_PASSWORD env var!"),
+        ),
+    };
+    Ok(config)
 }

@@ -59,6 +59,10 @@ impl HecClient {
             ..Default::default()
         }
     }
+    // Start the HEC Client with a given server config
+    pub fn with_serverconfig(serverconfig: ServerConfig) -> Self {
+        Self { serverconfig, ..Default::default() }
+    }
 
     async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, String> {
         let res = self

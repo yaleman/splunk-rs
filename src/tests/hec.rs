@@ -2,9 +2,10 @@
 #[cfg_attr(feature = "test_ci", ignore)]
 async fn test_hec_endpoint_health() -> Result<(), String> {
     use crate::hec::HecClient;
+    use crate::{get_serverconfig, ServerConfigType};
 
     let client = HecClient {
-        serverconfig: crate::tests::get_serverconfig(crate::tests::TestServerConfig::Hec)?,
+        serverconfig: get_serverconfig(ServerConfigType::Hec)?,
         ..Default::default()
     };
 
@@ -18,9 +19,10 @@ async fn test_hec_endpoint_health() -> Result<(), String> {
 #[tokio::test]
 async fn test_hec_endpoint_health_ack() -> Result<(), String> {
     use crate::hec::HecClient;
+    use crate::{get_serverconfig, ServerConfigType};
 
     let client = HecClient {
-        serverconfig: crate::tests::get_serverconfig(crate::tests::TestServerConfig::Hec)?,
+        serverconfig: get_serverconfig(ServerConfigType::Hec)?,
         ..Default::default()
     };
 
@@ -34,11 +36,12 @@ async fn test_hec_endpoint_health_ack() -> Result<(), String> {
 #[tokio::test]
 async fn send_test_data() -> Result<(), String> {
     use crate::hec::HecClient;
+    use crate::{get_serverconfig, ServerConfigType};
     use serde_json::json;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let client = HecClient {
-        serverconfig: crate::tests::get_serverconfig(crate::tests::TestServerConfig::Hec)?,
+        serverconfig: get_serverconfig(ServerConfigType::Hec)?,
         ..Default::default()
     }
     .with_index("test".to_string())
