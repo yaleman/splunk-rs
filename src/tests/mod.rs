@@ -32,14 +32,26 @@ pub fn get_serverconfig(configtype: TestServerConfig) -> Result<ServerConfig, St
         Err(_) => 8089.to_string(),
     };
     let port: u16 = port.parse::<u16>().unwrap();
-
-    Ok(ServerConfig {
-        hostname,
-        port,
-        auth_method: crate::search::AuthenticationMethod::Basic {
-            username: env::var("SPLUNK_USERNAME").unwrap(),
-            password: env::var("SPLUNK_PASSWORD").unwrap(),
-        },
-        ..Default::default()
-    })
+    match configtype {
+        TestServerConfig::Hec => Ok(ServerConfig {
+            hostname,
+            port,
+            auth_method: crate::search::AuthenticationMethod::Token {
+                token: env::var(format!("{env_prefix}TOKEN"))
+                    .expect("Couldn't get SPLUNK_HEC_TOKEN env var"),
+            },
+            ..Default::default()
+        }),
+        TestServerConfig::Api => Ok(ServerConfig {
+            hostname,
+            port,
+            auth_method: crate::search::AuthenticationMethod::Basic {
+                username: env::var("SPLUNK_USERNAME")
+                    .expect("Couldn't get SPLUNK_USERNAME env var!"),
+                password: env::var("SPLUNK_PASSWORD")
+                    .expect("Couldn't get SPLUNK_PASSWORD env var!"),
+            },
+            ..Default::default()
+        }),
+    }
 }
