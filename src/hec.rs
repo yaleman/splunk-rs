@@ -50,8 +50,8 @@ pub struct HecHealthResult {
 }
 
 impl HecClient {
-    pub fn new(token: String, hostname: String) -> Self {
-        let serverconfig = ServerConfig::new(hostname).with_token(token);
+    pub fn new(token: impl ToString, hostname: impl ToString) -> Self {
+        let serverconfig = ServerConfig::new(hostname.to_string()).with_token(token.to_string()).with_port(8088);
         Self {
             serverconfig,
             ..Default::default()

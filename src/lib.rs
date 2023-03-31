@@ -54,7 +54,7 @@ impl ServerConfig {
     /// use reqwest::Url;
     /// use splunk::hec::HecClient;
     ///
-    /// let client = HecClient::new();
+    /// let client = HecClient::new("token", "localhost");
     /// let expected_response = Url::from_str("https://localhost:8088/hello").unwrap();
     /// assert_eq!(client.serverconfig.get_url("/hello").unwrap(), expected_response);
     /// ```
