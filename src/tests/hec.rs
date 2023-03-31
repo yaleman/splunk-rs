@@ -5,7 +5,6 @@ async fn test_hec_endpoint_health() -> Result<(), String> {
 
     let client = HecClient {
         serverconfig: crate::tests::get_serverconfig(crate::tests::TestServerConfig::Hec)?,
-        token: "".to_string(),
         ..Default::default()
     };
 
@@ -22,7 +21,6 @@ async fn test_hec_endpoint_health_ack() -> Result<(), String> {
 
     let client = HecClient {
         serverconfig: crate::tests::get_serverconfig(crate::tests::TestServerConfig::Hec)?,
-        token: "".to_string(),
         ..Default::default()
     };
 

@@ -3,17 +3,18 @@
 //! Based on <https://docs.splunk.com/Documentation/Splunk/9.0.4/Data/HECExamples>
 //!
 
+use log::error;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use crate::search::AuthenticationMethod;
 use crate::ServerConfig;
 
 /// HEC Client
 #[derive(Debug)]
 pub struct HecClient {
     pub serverconfig: ServerConfig,
-    pub token: String,
     pub index: Option<String>,
     pub sourcetype: Option<String>,
     pub source: Option<String>,
@@ -28,8 +29,8 @@ impl Default for HecClient {
                 verify_tls: true,
                 validate_ssl: true,
                 auth_method: crate::search::AuthenticationMethod::Unknown,
+                ..Default::default()
             },
-            token: "".to_string(),
             index: None,
             sourcetype: None,
             source: None,
@@ -50,12 +51,11 @@ pub struct HecHealthResult {
 
 impl HecClient {
     pub fn new(token: String, hostname: String) -> Self {
-        let mut res = Self {
-            token,
+        let serverconfig = ServerConfig::new(hostname).with_token(token);
+        Self {
+            serverconfig,
             ..Default::default()
-        };
-        res.serverconfig.hostname = hostname;
-        res
+        }
     }
 
     async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, String> {
@@ -110,9 +110,20 @@ impl HecClient {
 
         // Create a map of headers to send with the request
         let mut headers = HeaderMap::new();
+        let token = match self.serverconfig.auth_method.clone() {
+            AuthenticationMethod::Token { token } => token,
+            AuthenticationMethod::Basic {
+                username: _,
+                password,
+            } => password,
+            AuthenticationMethod::Unknown => {
+                error!("Token is not set for HEC Event!");
+                "".to_string()
+            }
+        };
         headers.insert(
             "Authorization",
-            format!("Splunk {}", self.token).parse().unwrap(),
+            format!("Splunk {}", token).parse().unwrap(),
         );
         headers.insert("Content-Type", "application/json".parse().unwrap());
 

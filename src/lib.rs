@@ -31,8 +31,7 @@ pub struct ServerConfig {
     validate_ssl: bool,
     verify_tls: bool,
     auth_method: AuthenticationMethod,
-    // username: Option<String>,
-    // password: Option<String>
+    connection_timeout: u16,
 }
 
 impl Default for ServerConfig {
@@ -43,6 +42,7 @@ impl Default for ServerConfig {
             validate_ssl: true,
             verify_tls: true,
             auth_method: AuthenticationMethod::Unknown,
+            connection_timeout: 30,
         }
     }
 }
@@ -73,6 +73,23 @@ impl ServerConfig {
         }
         result.push_str(endpoint);
         Url::from_str(&result).map_err(|e| format!("{e:?}"))
+    }
+
+    pub fn new(hostname: String) -> Self {
+        Self {
+            hostname,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_token(mut self, token: String) -> Self {
+        self.auth_method = AuthenticationMethod::Token { token };
+        self
+    }
+
+    pub fn with_username_password(mut self, username: String, password: String) -> Self {
+        self.auth_method = AuthenticationMethod::Basic { username, password };
+        self
     }
 
     pub async fn do_get(
