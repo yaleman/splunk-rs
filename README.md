@@ -1,10 +1,12 @@
 # splunk
 
-A start on implementing a rust crate for Splunk-related things.
+A start on implementing a Rust crate for Splunk-related things.
 
 ## TODO
 
 - Most of it
+- HEC Transfers
+  - [x] it does a *really* simple version of pushing to HEC now with HecClient.
 - REST API Auth
   - [x] Basic Authentication to the REST API
   - [ ] Token Authentication to the REST API
@@ -26,6 +28,5 @@ A start on implementing a rust crate for Splunk-related things.
   - [ ] set_priority (0-10)
   - [ ] summary (GET search/jobs/{search_id}/summary <http://docs.splunk.com/Documentation/Splunk/latest/RESTAPI/RESTsearch#GET_search.2Fjobs.2F.7Bsearch_id.7D.2Fsummary>)
   - [ ] timeline GET search/jobs/{search_id}/timeline <http://docs.splunk.com/Documentation/Splunk/latest/RESTAPI/RESTsearch#GET_search.2Fjobs.2F.7Bsearch_id.7D.2Ftimeline>`
-  - [ ] touch (set ttl)
+  - [ ] touch the job (set ttl)
 - SearchJob Results - maybe its own thing, maybe an Iterator?
-- HEC Transfers

@@ -1,8 +1,10 @@
 //! Placeholder for now.
 
+use std::error::Error;
 use std::str::FromStr;
 
-use reqwest::Url;
+use reqwest::header::HeaderMap;
+use reqwest::{Response, Url};
 use search::AuthenticationMethod;
 use serde::{Deserialize, Serialize};
 
@@ -27,7 +29,7 @@ pub struct ServerConfig {
     pub hostname: String,
     pub port: u16,
     validate_ssl: bool,
-    use_tls: bool,
+    verify_tls: bool,
     auth_method: AuthenticationMethod,
     // username: Option<String>,
     // password: Option<String>
@@ -39,7 +41,7 @@ impl Default for ServerConfig {
             hostname: "localhost".to_string(),
             port: 8089,
             validate_ssl: true,
-            use_tls: true,
+            verify_tls: true,
             auth_method: AuthenticationMethod::Unknown,
         }
     }
@@ -59,17 +61,35 @@ impl ServerConfig {
     pub fn get_url(&self, endpoint: &str) -> Result<Url, String> {
         let mut result = String::new();
 
-        result.push_str(match self.use_tls {
+        result.push_str(match self.verify_tls {
             true => "https",
             false => "http",
         });
 
         result.push_str("://");
         result.push_str(&self.hostname);
-        if (self.use_tls && self.port != 443) || (!self.use_tls && self.port != 80) {
+        if (self.verify_tls && self.port != 443) || (!self.verify_tls && self.port != 80) {
             result.push_str(&format!(":{}", self.port));
         }
         result.push_str(endpoint);
         Url::from_str(&result).map_err(|e| format!("{e:?}"))
+    }
+
+    pub async fn do_get(
+        &self,
+        _endpoint: &str,
+        _headers: HeaderMap,
+    ) -> Result<Response, Box<dyn Error>> {
+        todo!();
+    }
+
+    pub fn with_port(mut self, port: u16) -> Self {
+        self.port = port;
+        self
+    }
+
+    pub fn with_verify_tls(mut self, verify_tls: bool) -> Self {
+        self.verify_tls = verify_tls;
+        self
     }
 }

@@ -1,10 +1,11 @@
 //! HTTP Event Collector related functionality
 //!
-//! <https://docs.splunk.com/Documentation/Splunk/9.0.4/Data/HECExamples>
+//! Based on <https://docs.splunk.com/Documentation/Splunk/9.0.4/Data/HECExamples>
 //!
 
-use reqwest::Response;
+use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 use crate::ServerConfig;
 
@@ -13,6 +14,9 @@ use crate::ServerConfig;
 pub struct HecClient {
     pub serverconfig: ServerConfig,
     pub token: String,
+    pub index: Option<String>,
+    pub sourcetype: Option<String>,
+    pub source: Option<String>,
 }
 
 impl Default for HecClient {
@@ -21,12 +25,14 @@ impl Default for HecClient {
             serverconfig: ServerConfig {
                 hostname: "localhost".to_string(),
                 port: 8088,
-                use_tls: true,
+                verify_tls: true,
                 validate_ssl: true,
                 auth_method: crate::search::AuthenticationMethod::Unknown,
             },
-
             token: "".to_string(),
+            index: None,
+            sourcetype: None,
+            source: None,
         }
     }
 }
@@ -43,20 +49,19 @@ pub struct HecHealthResult {
 }
 
 impl HecClient {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    async fn do_get_query(&self, endpoint: &str) -> Result<Response, reqwest::Error> {
-        reqwest::get(self.serverconfig.get_url(endpoint).unwrap()).await
-        // .json::<HashMap<String, String>>()
-        // .await?;
-        // unimplemented!();
+    pub fn new(token: String, hostname: String) -> Self {
+        let mut res = Self {
+            token,
+            ..Default::default()
+        };
+        res.serverconfig.hostname = hostname;
+        res
     }
 
     async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, String> {
         let res = self
-            .do_get_query(endpoint)
+            .serverconfig
+            .do_get(endpoint, HeaderMap::new())
             .await
             .unwrap()
             .json::<HecHealthResult>()
@@ -73,5 +78,70 @@ impl HecClient {
     pub async fn get_health_ack(&self) -> Result<HecHealthResult, String> {
         self.do_healthcheck("/services/collector/health?ack=true")
             .await
+    }
+
+    pub fn with_index(mut self, index: impl ToString) -> Self {
+        self.index = Some(index.to_string());
+        self
+    }
+
+    pub fn with_sourcetype(mut self, sourcetype: impl ToString) -> Self {
+        self.sourcetype = Some(sourcetype.to_string());
+        self
+    }
+
+    pub fn with_source(mut self, source: impl ToString) -> Self {
+        self.source = Some(source.to_string());
+        self
+    }
+
+    /// send data to the HEC endpoint
+    pub async fn send_to_splunk(&self, event: Value) -> Result<(), Error> {
+        // Create a reqwest Client to send the HTTP request
+        let mut client = Client::builder()
+            .timeout(std::time::Duration::from_secs(60))
+            .redirect(Policy::none());
+
+        if self.serverconfig.verify_tls {
+            client = client.danger_accept_invalid_certs(true);
+        }
+
+        let client = client.build()?;
+
+        // Create a map of headers to send with the request
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            "Authorization",
+            format!("Splunk {}", self.token).parse().unwrap(),
+        );
+        headers.insert("Content-Type", "application/json".parse().unwrap());
+
+        // Add index, sourcetype, and source fields to the payload if they are set
+        let mut payload = json!({ "event": event });
+        if let Some(index) = &self.index {
+            payload["index"] = json!(index);
+        }
+        if let Some(sourcetype) = &self.sourcetype {
+            payload["sourcetype"] = json!(sourcetype);
+        }
+        if let Some(source) = &self.source {
+            payload["source"] = json!(source);
+        }
+
+        // Send the POST request with the payload and headers to the Splunk HEC endpoint
+        let url = format!(
+            "https://{}:{}/services/collector",
+            self.serverconfig.hostname, self.serverconfig.port
+        );
+        let request_builder = client
+            .post(&url)
+            .headers(headers)
+            .body(serde_json::to_string(&payload).unwrap());
+
+        let result = request_builder.send().await?;
+
+        result.error_for_status().unwrap();
+
+        Ok(())
     }
 }
