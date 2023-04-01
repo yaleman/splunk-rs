@@ -2,9 +2,9 @@
 name = "splunk"
 version = "0.1.1-alpha1"
 edition = "2021"
-description = "Splunk client implementation"
+description = "Splunk client implementation supporting HEC and Search APIs"
 license = "MIT"
-documentation = "https://github.com/yaleman/splunk-rs"
+documentation = "https://yaleman.github.io/splunk-rs/splunk/"
 repository = "https://github.com/yaleman/splunk-rs"
 homepage = "https://github.com/yaleman/splunk-rs"
 
