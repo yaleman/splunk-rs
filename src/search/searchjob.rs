@@ -116,7 +116,7 @@ pub struct SearchJobBuilder {
     auto_pause: u32,
     /// See [SearchOutputMode]
     output_mode: SearchOutputMode,
-    /// Custom parameter, see the doc examples for POST under `search/jobs` - https://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTsearch#search.2Fjobs
+    /// Custom parameter, see the doc examples for POST under `search/jobs` - <https://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTsearch#search.2Fjobs>
     custom: Option<String>,
     /// Indicates whether lookups should be applied to events.
     /// Specifying true (the default) may slow searches significantly depending on the nature of the lookups.
