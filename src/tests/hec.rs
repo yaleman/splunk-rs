@@ -90,7 +90,7 @@ async fn send_queued_multi_overized_batch() -> Result<(), String> {
 
     for i in [0..3].iter() {
         let event = TestEvent::new("send_queued_multi", format!("Event {:?}", i));
-        client.enqueue(event.into());
+        client.enqueue(event.into()).await;
     }
     client.flush(Some(20)).await.map_err(|e| e.to_string())?;
     Ok(())

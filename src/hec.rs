@@ -5,6 +5,8 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
+use tokio::sync::RwLock;
+use std::sync::Arc;
 
 use log::error;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
@@ -25,7 +27,7 @@ pub struct HecClient {
     pub sourcetype: Option<String>,
     /// The target source - if this is None then it'll just let the server decide
     pub source: Option<String>,
-    queue: VecDeque<Box<Value>>,
+    queue: Arc<RwLock<VecDeque<Box<Value>>>>,
 }
 
 impl Default for HecClient {
@@ -42,7 +44,7 @@ impl Default for HecClient {
             index: None,
             sourcetype: None,
             source: None,
-            queue: VecDeque::new(),
+            queue: Arc::new(RwLock::new(VecDeque::new())),
         }
     }
 }
@@ -254,18 +256,18 @@ impl HecClient {
     }
 
     /// add a new queue item
-    pub fn enqueue(&mut self, event: Value) {
-        self.queue.push_back(Box::new(event))
+    pub async fn enqueue(&mut self, event: Value) {
+        self.queue.write().await.push_back(Box::new(event))
     }
 
     /// get the current queue size
-    pub fn queue_size(&self) -> usize {
-        self.queue.len()
+    pub async fn queue_size(&self) -> usize {
+        self.queue.read().await.len()
     }
 
     /// Flush the queue out to HEC, defaults to batches of 1000
     pub async fn flush(&mut self, batch_size: Option<u32>) -> Result<usize, Error> {
-        if self.queue.is_empty() {
+        if self.queue.read().await.is_empty() {
             return Ok(0);
         }
 
@@ -273,12 +275,13 @@ impl HecClient {
 
         let mut sent: usize = 0;
         loop {
-            if self.queue.is_empty() {
+            if self.queue.read().await.is_empty() {
                 break;
             }
-            let events = self
-                .queue
-                .drain(0..min(self.queue.len(), batch_size as usize));
+            let mut queue = self.queue.write().await;
+            let queue_len = queue.len();
+            let events = queue
+                .drain(0..min(queue_len, batch_size as usize));
             // TODO: handle max payload size, because sometimes posting a gig of data is bad
             let payload: Vec<Value> = events.into_iter().map(|e| *e).collect();
             sent += payload.len();

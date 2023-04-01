@@ -50,9 +50,9 @@ async fn main() -> Result<(), String> {
         if buffer.trim().len() != 0 {
             let data = json!(buffer.trim());
             eprintln!("Sending {data:?}");
-            hec.enqueue(data);
+            hec.enqueue(data).await;
         }
-        if hec.queue_size() >= 10 {
+        if hec.queue_size().await >= 10 {
             match hec.flush(None).await {
                 Ok(val) => eprintln!("Sent {} events!", val),
                 Err(err) => eprintln!("Failure sending event: {err:?}"),
