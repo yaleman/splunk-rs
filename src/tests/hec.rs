@@ -51,7 +51,7 @@ async fn send_test_data() -> Result<(), String> {
 
 
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 struct TestEvent {
     test_name: String,
     #[serde(alias="_time")]
@@ -88,10 +88,11 @@ async fn send_queued_multi_overized_batch() -> Result<(), String> {
 
     let mut client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
-    for i in [0..3].iter() {
+    for i in 0..3 {
         let event = TestEvent::new("send_queued_multi", format!("Event {:?}", i));
         client.enqueue(event.into()).await;
-    }
+    };
+
     client.flush(Some(20)).await.map_err(|e| e.to_string())?;
     Ok(())
 }
