@@ -3,14 +3,13 @@ use std::io;
 /// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
-use splunk::get_serverconfig;
 use splunk::hec::HecClient;
 
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long)]
     index: Option<String>,
-    #[arg(short='n', long)]
+    #[arg(short = 'n', long)]
     hostname: Option<String>,
     #[arg(short, long)]
     port: Option<u16>,
@@ -20,12 +19,10 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<(), String> {
-
     let cli = Cli::parse();
 
     // in case they're using environment variables
-    let serverconfig = get_serverconfig(splunk::ServerConfigType::Hec)?;
-
+    let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
 
     // set up the HecClient
     let mut hec = HecClient::with_serverconfig(serverconfig);
@@ -45,13 +42,21 @@ async fn main() -> Result<(), String> {
     eprintln!("Waiting for input...");
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
-    while  stdin.read_line(&mut buffer).map_err(|err| err.to_string())? > 0 {
+    while stdin
+        .read_line(&mut buffer)
+        .map_err(|err| err.to_string())?
+        > 0
+    {
         if buffer.trim().len() != 0 {
             let data = json!(buffer.trim());
             eprintln!("Sending {data:?}");
-            if let Err(err) = hec.send_to_splunk(data).await {
-                eprintln!("failed to send: {err:?}");
-            };
+            hec.enqueue(data);
+        }
+        if hec.queue_size() >= 10 {
+            match hec.flush(None).await {
+                Ok(val) => eprintln!("Sent {} events!", val),
+                Err(err) => eprintln!("Failure sending event: {err:?}"),
+            }
         }
 
         buffer.clear();

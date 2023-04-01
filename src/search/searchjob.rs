@@ -9,15 +9,24 @@ use serde::{Deserialize, Serialize};
 
 use super::SplunkClient;
 
+/// Error types for when we're trying to do searches
 #[derive(Debug)]
 pub enum SearchJobBuilderError {
-    CreateFailed { message: String },
+    /// While creating the search it failed in some way
+    CreateFailed {
+        /// The error message
+        message: String,
+    },
 }
 
 #[derive(Debug, Clone)]
+/// What kind of search mode we're using
 pub enum SearchExecMode {
+    /// Wait for the server to finish then respond
     Blocking,
+    /// Stream the responses back straight away
     OneShot,
+    /// "Normal" mode.
     Normal,
 }
 impl ToString for SearchExecMode {
@@ -32,10 +41,14 @@ impl ToString for SearchExecMode {
 }
 
 #[derive(Clone, Debug)]
+/// Set the search level
 pub enum AdHocSearchLevel {
-    Verbose,
+    /// Fast Mode - Field discovery off for event searches. No event or field data for stats searches.
     Fast,
+    /// Smart Mode - Field discovery on for event searches. No event or field data for stats searches.
     Smart,
+    /// Verbose Mode - All event & field data.
+    Verbose,
 }
 
 impl ToString for AdHocSearchLevel {
@@ -49,7 +62,9 @@ impl ToString for AdHocSearchLevel {
 }
 
 #[allow(dead_code)]
+#[allow(missing_docs)]
 #[derive(Clone, Debug)]
+/// What format the server will respond in
 pub enum SearchOutputMode {
     Atom,
     Csv,
@@ -76,20 +91,33 @@ impl ToString for SearchOutputMode {
 }
 
 #[derive(Clone, Debug)]
+/// Builder object for a search job
 pub struct SearchJobBuilder {
+    /// The query string
     query: String,
+    /// How many results we want back
     count: Option<u64>,
-    earliest_time: String, // TODO: The time string can be a UTC time (with fractional seconds), a relative time specifier (to now), or a formatted time string.
-    latest_time: String, // TODO: The time string can be a UTC time (with fractional seconds), a relative time specifier (to now), or a formatted time string.
+    /// Earliest time in the search, defaults to -24h
+    /// The time string can be a UTC time (with fractional seconds), a relative time specifier (to now), or a formatted time string.
+    earliest_time: String,
+    /// Latest time, the time string can be a UTC time (with fractional seconds), a relative time specifier (to now), or a formatted time string.
+    latest_time: String,
+    /// Vec of fields we want to come back
     fields: Vec<String>,
+    /// What Search level we're asking for, see [AdHocSearchLevel]
     adhoc_search_level: AdHocSearchLevel,
+    /// Do we want previews, or should we wait
     allow_partial_results: bool,
+    /// Automatically cancel the search after x seconds - set to 0 (default) for never.
     auto_cancel: u32,
+    /// Automatically finalize and return the search after x events returned - set to 0 (default) for never.
     auto_finalize_ec: u32,
+    /// Automatically pause the search after x seconds - set to 0 (default) for never.
     auto_pause: u32,
+    /// See [SearchOutputMode]
     output_mode: SearchOutputMode,
-    /// Custom parameter
-    custom: u32,
+    /// Custom parameter, see the doc examples for POST under `search/jobs` - https://docs.splunk.com/Documentation/Splunk/latest/RESTREF/RESTsearch#search.2Fjobs
+    custom: Option<String>,
     /// Indicates whether lookups should be applied to events.
     /// Specifying true (the default) may slow searches significantly depending on the nature of the lookups.
     enable_lookups: bool,
@@ -118,7 +146,7 @@ impl Default for SearchJobBuilder {
             auto_finalize_ec: 0,
             auto_pause: 0,
             output_mode: SearchOutputMode::Json,
-            custom: 0,
+            custom: None,
             enable_lookups: true,
             exec_mode: SearchExecMode::Normal,
             force_bundle_replication: false,
@@ -130,16 +158,21 @@ impl Default for SearchJobBuilder {
 }
 
 #[derive(Deserialize)]
+/// Deserializer for Atom/XML response data
 pub struct XMLResponseWithSid {
+    #[allow(missing_docs)]
     pub response: XMLResponseSid,
 }
 
 #[derive(Deserialize)]
+/// Deserializer for Atom/XML response data
 pub struct XMLResponseSid {
+    #[allow(missing_docs)]
     pub sid: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+/// Deserializer for Atom/XML response data
 pub struct SearchResult {
     preview: Option<bool>,
     offset: usize,
@@ -172,7 +205,9 @@ impl SearchJobBuilder {
         payload.insert("auto_cancel", format!("{}", self.auto_cancel));
         payload.insert("auto_finalize_ec", format!("{}", self.auto_finalize_ec));
         payload.insert("auto_pause", format!("{}", self.auto_pause));
-        payload.insert("custom", format!("{}", self.custom));
+        if let Some(custom) = self.custom {
+            payload.insert("custom", custom);
+        }
         payload.insert("earliest_time", self.earliest_time.clone());
         payload.insert("latest_time", self.latest_time.clone());
         payload.insert("timeout", self.timeout.to_string());
@@ -226,14 +261,23 @@ impl SearchJobBuilder {
     }
 }
 
+/// A search job
 pub struct SearchJob {
+    /// The search query
     pub query: String,
+    /// How many results we are asking for
     pub count: u64,
+    /// What [SearchExecMode] to run in
     pub exec_mode: SearchExecMode,
+    /// set earliest_time
     pub earliest_time: String,
+    /// set latest_time
     pub latest_time: String,
+    /// ask for a particular set of fields - leave empty for all
     pub fields: Vec<String>,
+    /// set the search ID on creation
     pub sid: Option<String>,
+    /// The raw `reqwest::Response` object
     pub creation_response: Response,
 }
 

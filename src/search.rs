@@ -14,16 +14,43 @@ pub mod searchjob;
 pub use searchjob::{SearchJob, SearchResult};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+/// The current auth method for the search client
 pub enum AuthenticationMethod {
-    Basic { username: String, password: String },
-    Token { token: String },
+    /// Basic auth
+    Basic {
+        /// username
+        username: String,
+        ///password
+        password: String,
+    },
+    /// Token auth
+    Token {
+        /// token auth
+        token: String,
+    },
+    /// Cookie based
+    Cookie {
+        /// cookie store
+        cookie: HashMap<String, String>,
+    },
+    /// we haven't set it yet
     Unknown,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+/// the current auth mode - you can auth with username/password then get a cookie and go from there
 pub enum AuthenticatedSessionMode {
-    Cookie { value: String },
-    Token { value: String },
+    /// cookie auth
+    Cookie {
+        /// cookie value
+        value: HashMap<String, String>,
+    },
+    /// token auth
+    Token {
+        /// the token
+        value: String,
+    },
+    /// we haven't set it yet
     Unset,
 }
 
@@ -31,7 +58,9 @@ pub enum AuthenticatedSessionMode {
 /// Client for splunk enterprise/cloud API things, login, search, manipulate config items etc.
 pub struct SplunkClient {
     #[serde(flatten)]
+    /// server configuration object
     pub serverconfig: ServerConfig,
+    /// what mode we're using for authentication (token, cookie etc)
     pub auth_session_mode: AuthenticatedSessionMode,
     #[serde(skip)]
     client: Client,
@@ -48,6 +77,7 @@ impl Default for SplunkClient {
 }
 
 impl SplunkClient {
+    /// set the config on build
     pub fn with_config(self, serverconfig: ServerConfig) -> Self {
         Self {
             serverconfig,
@@ -69,8 +99,12 @@ impl SplunkClient {
             AuthenticationMethod::Basic { username, password } => {
                 req.basic_auth(username, Some(password))
             }
-            AuthenticationMethod::Token { token: _ } => todo!(),
+            AuthenticationMethod::Token { token } => {
+                req.header("Authorization", format!("Splunk {}", token))
+            }
             AuthenticationMethod::Unknown => todo!(),
+            // TODO: handle cookie auth for posts?
+            AuthenticationMethod::Cookie { cookie: _ } => todo!(),
         };
 
         eprintln!("About to post this: {req:#?}");
@@ -164,6 +198,7 @@ impl SplunkClient {
         res
     }
 
+    /// do an export-search - TODO
     pub async fn export() -> Result<(), String> {
         unimplemented!();
     }

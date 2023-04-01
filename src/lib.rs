@@ -1,11 +1,12 @@
-//! Placeholder for now.
+#![warn(missing_docs)]
+
+//! A start on implementing Splunk-SDK-like-things
 
 use std::env;
-use std::error::Error;
 use std::str::FromStr;
 
 use reqwest::header::HeaderMap;
-use reqwest::{Response, Url};
+use reqwest::{Client, Response, Url};
 use search::AuthenticationMethod;
 use serde::{Deserialize, Serialize};
 
@@ -26,8 +27,11 @@ pub mod search;
 mod tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+/// What we're going to use to connect to the server
 pub struct ServerConfig {
+    /// Server hostname - just something like example.com (or an IP, if you're like that)
     pub hostname: String,
+    /// Port - defaults to 8089
     pub port: u16,
     validate_ssl: bool,
     verify_tls: bool,
@@ -76,6 +80,7 @@ impl ServerConfig {
         Url::from_str(&result).map_err(|e| format!("{e:?}"))
     }
 
+    /// Point at a server
     pub fn new(hostname: String) -> Self {
         Self {
             hostname,
@@ -83,8 +88,15 @@ impl ServerConfig {
         }
     }
 
+    /// Set the authentication method to token and set the token
     pub fn with_token(mut self, token: String) -> Self {
         self.auth_method = AuthenticationMethod::Token { token };
+        self
+    }
+
+    /// Set the authentication method to basic and set the credentials
+    pub fn with_username_password(mut self, username: String, password: String) -> Self {
+        self.auth_method = AuthenticationMethod::Basic { username, password };
         self
     }
 
@@ -97,20 +109,46 @@ impl ServerConfig {
             } => Some(password.to_owned()),
             AuthenticationMethod::Token { token } => Some(token.to_owned()),
             AuthenticationMethod::Unknown => None,
+            AuthenticationMethod::Cookie { .. } => None,
         }
     }
 
-    pub fn with_username_password(mut self, username: String, password: String) -> Self {
-        self.auth_method = AuthenticationMethod::Basic { username, password };
-        self
+    /// make a get request to a given endpoint
+    pub async fn do_get(&self, endpoint: &str) -> Result<Response, String> {
+        let headers = HeaderMap::new();
+        self.do_get_with_headers(endpoint, headers).await
     }
 
-    pub async fn do_get(
+    /// make a get request to a given endpoint and set the headers
+    pub async fn do_get_with_headers(
         &self,
-        _endpoint: &str,
-        _headers: HeaderMap,
-    ) -> Result<Response, Box<dyn Error>> {
-        todo!();
+        endpoint: &str,
+        add_headers: HeaderMap,
+    ) -> Result<Response, String> {
+        let request = Client::new().get(self.get_url(endpoint).unwrap());
+
+        let mut headers = HeaderMap::new();
+
+        // apply the supplied_headers
+        add_headers.into_iter().for_each(|(key, val)| {
+            headers.insert(key.unwrap(), val);
+        });
+
+        let request = match &self.auth_method {
+            AuthenticationMethod::Token { token } => {
+                headers.insert(
+                    "Authorization",
+                    format!("Splunk {}", token).parse().unwrap(),
+                );
+                request.headers(headers)
+            }
+            _ => todo!("haven't handled all the things yet"),
+            // AuthenticatedSessionMode::Cookie { value: _ } => todo!(),
+            // AuthenticatedSessionMode::Unset => todo!(),
+        };
+
+        // eprintln!("{:#?}", request);
+        request.send().await.map_err(|e| format!("{e:?}"))
     }
 
     /// Set the port
@@ -130,45 +168,48 @@ impl ServerConfig {
         self.verify_tls = verify_tls;
         self
     }
+
+    /// Grabs a [ServerConfig] from environment variables
+    pub fn try_from_env(configtype: ServerConfigType) -> Result<ServerConfig, String> {
+        let env_prefix = match configtype {
+            ServerConfigType::Hec => "SPLUNK_HEC_",
+            ServerConfigType::Api => "SPLUNK_API_",
+        };
+
+        let hostname = match env::var(format!("{env_prefix}HOSTNAME")) {
+            Ok(val) => val,
+            Err(_) => {
+                let error = format!("Please ensure env var {env_prefix}HOSTNAME is set");
+                eprintln!("{}", error);
+                return Err(error);
+            }
+        };
+        let port = match env::var(format!("{env_prefix}PORT")) {
+            Ok(val) => val,
+            Err(_) => 8089.to_string(),
+        };
+        let port: u16 = port.parse::<u16>().unwrap();
+
+        let config = ServerConfig::new(hostname).with_port(port);
+        let config = match configtype {
+            ServerConfigType::Hec => {
+                let token = env::var(format!("{env_prefix}TOKEN"))
+                    .expect("Couldn't get SPLUNK_HEC_TOKEN env var");
+                config.with_token(token)
+            }
+            ServerConfigType::Api => config.with_username_password(
+                env::var("SPLUNK_USERNAME").expect("Couldn't get SPLUNK_USERNAME env var!"),
+                env::var("SPLUNK_PASSWORD").expect("Couldn't get SPLUNK_PASSWORD env var!"),
+            ),
+        };
+        Ok(config)
+    }
 }
 
 /// This is just used in get_serverconfig so you can say "I need a HEC or I need an API one!"
 pub enum ServerConfigType {
+    /// You're using HTTP Event Collector - looks for SPLUNK_HEC_*
     Hec,
+    /// You're using API Endpoints - looks for SPLUNK_API_*
     Api,
-}
-
-pub fn get_serverconfig(configtype: ServerConfigType) -> Result<ServerConfig, String> {
-    let env_prefix = match configtype {
-        ServerConfigType::Hec => "SPLUNK_HEC_",
-        ServerConfigType::Api => "SPLUNK_API_",
-    };
-
-    let hostname = match env::var(format!("{env_prefix}HOSTNAME")) {
-        Ok(val) => val,
-        Err(_) => {
-            let error = format!("Please ensure env var {env_prefix}HOSTNAME is set");
-            eprintln!("{}", error);
-            return Err(error);
-        }
-    };
-    let port = match env::var(format!("{env_prefix}PORT")) {
-        Ok(val) => val,
-        Err(_) => 8089.to_string(),
-    };
-    let port: u16 = port.parse::<u16>().unwrap();
-
-    let config = ServerConfig::new(hostname).with_port(port);
-    let config = match configtype {
-        ServerConfigType::Hec => {
-            let token = env::var(format!("{env_prefix}TOKEN"))
-                .expect("Couldn't get SPLUNK_HEC_TOKEN env var");
-            config.with_token(token)
-        }
-        ServerConfigType::Api => config.with_username_password(
-            env::var("SPLUNK_USERNAME").expect("Couldn't get SPLUNK_USERNAME env var!"),
-            env::var("SPLUNK_PASSWORD").expect("Couldn't get SPLUNK_PASSWORD env var!"),
-        ),
-    };
-    Ok(config)
 }
