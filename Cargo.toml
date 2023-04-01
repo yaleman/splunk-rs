@@ -11,9 +11,8 @@ homepage = "https://github.com/yaleman/splunk-rs"
 [features]
 test_ci = [] # Used when in CI mode, to skip tests
 search = []
-default = ["next"]
+default = ["search", "hec"]
 hec = []
-next = ["search", "hec"]
 xml_raw = [] # This enables functions which we haven't worked out how to parse the XML...
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
