@@ -1,2 +1,5 @@
-#[cfg(feature="hec")]
+/// Test things.
+///
 mod hec;
+
+mod search;
