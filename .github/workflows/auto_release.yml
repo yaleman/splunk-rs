@@ -16,10 +16,6 @@ jobs:
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: false
-          files: |
-            src/
-            examples/
-            *.md
         if: startsWith(github.ref, 'refs/tags/v')
   latest-release:
     name: "Dev Release"
@@ -31,8 +27,4 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           automatic_release_tag: "dev"
           prerelease: true
-          files: |
-            src/
-            examples/
-            *.md
         if: ${{ github.ref == 'refs/heads/main'}}
