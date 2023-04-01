@@ -11,6 +11,6 @@ jobs:
         with:
           submodules: true
           fetch-depth: 1
-      - uses: icepuma/rust-action@master
+      - uses: actions-rs/cargo@v1
         with:
-          args: cargo test
+          command: test
