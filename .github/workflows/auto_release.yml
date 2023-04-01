@@ -22,14 +22,15 @@ jobs:
             *.md
         if: startsWith(github.ref, 'refs/tags/v')
   latest-release:
-    name: "Latest Release"
+    name: "Dev Release"
     runs-on: "ubuntu-latest"
 
     steps:
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          prerelease: false
+          automatic_release_tag: "dev"
+          prerelease: true
           files: |
             src/
             examples/
