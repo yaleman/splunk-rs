@@ -34,4 +34,4 @@ jobs:
             src/
             examples/
             *.md
-        if: ${{ github.ref == "refs/heads/main"}}
+        if: ${{ github.ref == 'refs/heads/main'}}
