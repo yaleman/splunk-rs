@@ -3,6 +3,8 @@ name: "Release Automation"
 
 "on":
   push:
+    branches:
+      - main
 
 jobs:
   tagged-release:
@@ -18,7 +20,7 @@ jobs:
             src/
             examples/
             *.md
-        if: ${{ startsWith(github.ref, "refs/tags/v"}}
+        if: ${{ startsWith(github.ref, "refs/tags/v" }}
   latest-release:
     name: "Latest Release"
     runs-on: "ubuntu-latest"
