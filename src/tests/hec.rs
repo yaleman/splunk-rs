@@ -1,6 +1,6 @@
-use std::time::{UNIX_EPOCH, SystemTime};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
@@ -49,25 +49,22 @@ async fn send_test_data() -> Result<(), String> {
         .await.map_err(|e| e.to_string())
 }
 
-
-
 #[derive(Debug, serde::Serialize)]
 struct TestEvent {
     test_name: String,
-    #[serde(alias="_time")]
+    #[serde(alias = "_time")]
     time: u64,
     message: String,
 }
 
 impl TestEvent {
     #[allow(dead_code)]
-    fn new(test_name: impl ToString, message: impl ToString ) -> Self {
-
+    fn new(test_name: impl ToString, message: impl ToString) -> Self {
         let now = SystemTime::now();
         Self {
             test_name: test_name.to_string(),
             time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
-            message: message.to_string()
+            message: message.to_string(),
         }
     }
 }
@@ -78,7 +75,6 @@ impl From<TestEvent> for Value {
     }
 }
 
-
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn send_queued_multi_overized_batch() -> Result<(), String> {
@@ -86,12 +82,13 @@ async fn send_queued_multi_overized_batch() -> Result<(), String> {
 
     use crate::{ServerConfig, ServerConfigType};
 
-    let mut client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
+    let mut client =
+        HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     for i in 0..3 {
         let event = TestEvent::new("send_queued_multi", format!("Event {:?}", i));
         client.enqueue(event.into()).await;
-    };
+    }
 
     client.flush(Some(20)).await.map_err(|e| e.to_string())?;
     Ok(())

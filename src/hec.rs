@@ -5,8 +5,8 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
-use tokio::sync::RwLock;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use log::error;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
@@ -280,8 +280,7 @@ impl HecClient {
             }
             let mut queue = self.queue.write().await;
             let queue_len = queue.len();
-            let events = queue
-                .drain(0..min(queue_len, batch_size as usize));
+            let events = queue.drain(0..min(queue_len, batch_size as usize));
             // TODO: handle max payload size, because sometimes posting a gig of data is bad
             let payload: Vec<Value> = events.into_iter().map(|e| *e).collect();
             sent += payload.len();

@@ -213,3 +213,22 @@ pub enum ServerConfigType {
     /// You're using API Endpoints - looks for SPLUNK_API_*
     Api,
 }
+
+
+
+/// Strip the extra noise out of the ATOM datas
+pub fn strip_atom_noise(input: String) -> String {
+    let replacements = [
+        "s",
+        "opensearch",
+    ];
+
+    let mut res = input.clone();
+
+    for r in replacements {
+        res = res
+            .replace(&format!("<{}:", r), "<")
+            .replace(&format!("</{}:", r), "</")
+    };
+    res
+}

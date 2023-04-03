@@ -175,7 +175,7 @@ impl SplunkClient {
     /// Get the authenticated session owner username.
     /// <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTaccess#authentication.2Fcurrent-context>
     /// Currently returns just the raw XML result as a string
-    #[cfg(feature = "xml_raw")]
+    // #[cfg(feature = "xml_raw")]
     pub async fn get_current_context(&mut self) -> Result<String, String> {
         let endpoint = "/services/authentication/current-context";
 
@@ -195,7 +195,7 @@ impl SplunkClient {
 
         let res = self.do_get(endpoint).await?;
         let res = res.text().await.map_err(|e| format!("{e:?}"))?;
-        res
+        Ok(res.to_string())
     }
 
     /// do an export-search - TODO
