@@ -1,0 +1,39 @@
+<content>
+<dict>
+    <key name="capabilities">
+        <list>
+        <item>item1</item>
+        <item>item2</item>
+        </list>
+    </key>
+    <key name="roles">
+        <list>
+        <item>admin</item>
+        </list>
+    </key>
+    <key name="reportsThing">reports</key>
+    <key name="Numbervalue">1</key>
+    <key name="aclDict">
+        <dict>
+        <key name="app"></key>
+        <key name="can_list">1</key>
+        <key name="owner">system</key>
+        <key name="perms">
+            <dict>
+            <key name="read">
+                <list>
+                <item>*</item>
+                </list>
+            </key>
+            <key name="write">
+                <list>
+                <item>*</item>
+                </list>
+            </key>
+            </dict>
+        </key>
+        <key name="removable">0</key>
+        <key name="sharing">system</key>
+        </dict>
+    </key>
+</dict></content>
