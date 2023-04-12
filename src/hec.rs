@@ -5,7 +5,6 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
-use tokio::sync::RwLock;
 use std::sync::Arc;
 
 use log::error;
