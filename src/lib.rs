@@ -23,7 +23,7 @@ pub mod hec;
 #[macro_use]
 pub mod search;
 
-#[cfg(debug_assertions)]
+#[cfg(test)]
 mod tests;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

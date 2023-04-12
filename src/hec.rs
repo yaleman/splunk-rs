@@ -5,13 +5,13 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
-use tokio::sync::RwLock;
 use std::sync::Arc;
 
 use log::error;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tokio::sync::RwLock;
 
 use crate::search::AuthenticationMethod;
 use crate::ServerConfig;
