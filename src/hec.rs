@@ -5,7 +5,7 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use log::error;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
