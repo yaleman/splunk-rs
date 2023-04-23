@@ -28,6 +28,10 @@ pub struct HecClient {
     /// The target source - if this is None then it'll just let the server decide
     pub source: Option<String>,
     queue: Arc<RwLock<VecDeque<Box<Value>>>>,
+    /// The user-agent string to send, defaults to `splunk-rs <version>`
+    useragent: String,
+    /// Connection timeout, defaults to 60 seconds
+    pub timeout: u64,
 }
 
 impl Default for HecClient {
@@ -45,6 +49,8 @@ impl Default for HecClient {
             sourcetype: None,
             source: None,
             queue: Arc::new(RwLock::new(VecDeque::new())),
+            useragent: format!("splunk-rs {}", env!("CARGO_PKG_VERSION")),
+            timeout: 60,
         }
     }
 }
@@ -79,6 +85,11 @@ impl HecClient {
             serverconfig,
             ..Default::default()
         }
+    }
+
+    /// Configure a custom user-agent string
+    pub fn useragent(&mut self, useragent: impl ToString) {
+        self.useragent = useragent.to_string();
     }
 
     async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, String> {
@@ -125,15 +136,7 @@ impl HecClient {
     /// send a single event to the HEC endpoint
     pub async fn send_event(&self, event: Value) -> Result<(), Error> {
         // Create a reqwest Client to send the HTTP request
-        let mut client = Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
-            .redirect(Policy::none());
-
-        if self.serverconfig.verify_tls {
-            client = client.danger_accept_invalid_certs(true);
-        }
-
-        let client = client.build()?;
+        let client = self.get_client()?;
 
         // Create a map of headers to send with the request
         let mut headers = HeaderMap::new();
@@ -186,18 +189,24 @@ impl HecClient {
         Ok(())
     }
 
-    /// send data to the HEC endpoint
-    pub async fn send_events(&self, events: Vec<Value>) -> Result<(), Error> {
-        // Create a reqwest Client to send the HTTP request
+    /// Creates the reqwest client with a consistent configuration
+    fn get_client(&self) -> Result<Client, reqwest::Error> {
         let mut client = Client::builder()
-            .timeout(std::time::Duration::from_secs(60))
+            .timeout(std::time::Duration::from_secs(self.timeout))
+            .user_agent(&self.useragent)
             .redirect(Policy::none());
 
         if self.serverconfig.verify_tls {
             client = client.danger_accept_invalid_certs(true);
         }
 
-        let client = client.build()?;
+        client.build()
+    }
+
+    /// send data to the HEC endpoint
+    pub async fn send_events(&self, events: Vec<Value>) -> Result<(), Error> {
+        // Create a reqwest Client to send the HTTP request
+        let client = self.get_client()?;
 
         // Create a map of headers to send with the request
         let mut headers = HeaderMap::new();

@@ -93,3 +93,23 @@ async fn send_queued_multi_overized_batch() -> Result<(), String> {
     client.flush(Some(20)).await.map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// This'll turn up in the logs when you search for *monkeymonkeymonkey* sourcetype="*:access" */services/collector*
+#[cfg_attr(feature = "test_ci", ignore)]
+#[tokio::test]
+async fn send_with_custom_useragent() -> Result<(), String> {
+    use crate::hec::HecClient;
+    use crate::{ServerConfig, ServerConfigType};
+
+    let mut client =
+        HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
+
+    client.useragent("splunk-rs-monkeymonkeymonkey");
+
+    for i in 0..3 {
+        let event = TestEvent::new("send_with_custom_useragent", format!("Event {:?}", i));
+        client.enqueue(event.into()).await;
+    }
+    client.flush(Some(20)).await.map_err(|e| e.to_string())?;
+    Ok(())
+}
