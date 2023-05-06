@@ -10,6 +10,8 @@ use crate::ServerConfig;
 
 #[macro_use]
 pub mod searchjob;
+pub mod kvstore;
+
 
 pub use searchjob::{SearchJob, SearchResult};
 
