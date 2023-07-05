@@ -12,7 +12,6 @@ use crate::ServerConfig;
 pub mod searchjob;
 pub mod kvstore;
 
-
 pub use searchjob::{SearchJob, SearchResult};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -81,8 +80,16 @@ impl Default for SplunkClient {
 impl SplunkClient {
     /// set the config on build
     pub fn with_config(self, serverconfig: ServerConfig) -> Self {
+        let client = match serverconfig.verify_tls {
+            true => Client::new(),
+            false => Client::builder()
+                .danger_accept_invalid_certs(true)
+                .build()
+                .unwrap(),
+        };
         Self {
             serverconfig,
+            client,
             ..self
         }
     }
@@ -109,8 +116,8 @@ impl SplunkClient {
             AuthenticationMethod::Cookie { cookie: _ } => todo!(),
         };
 
-        eprintln!("About to post this: {req:#?}");
-        eprintln!("About to post this: {:#?}", payload);
+        // eprintln!("About to post this: {req:#?}");
+        // eprintln!("About to post this: {:#?}", payload);
 
         req.send().await.map_err(|e| format!("{e:?}"))
     }
