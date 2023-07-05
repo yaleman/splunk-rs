@@ -35,6 +35,7 @@ pub struct ServerConfig {
     pub port: u16,
     validate_ssl: bool,
     verify_tls: bool,
+    use_tls: bool,
     auth_method: AuthenticationMethod,
     connection_timeout: u16,
 }
@@ -46,6 +47,7 @@ impl Default for ServerConfig {
             port: 8089,
             validate_ssl: true,
             verify_tls: true,
+            use_tls: true,
             auth_method: AuthenticationMethod::Unknown,
             connection_timeout: 30,
         }
@@ -66,7 +68,7 @@ impl ServerConfig {
     pub fn get_url(&self, endpoint: &str) -> Result<Url, String> {
         let mut result = String::new();
 
-        result.push_str(match self.verify_tls {
+        result.push_str(match self.use_tls {
             true => "https",
             false => "http",
         });
@@ -91,6 +93,12 @@ impl ServerConfig {
     /// Set the authentication method to token and set the token
     pub fn with_token(mut self, token: String) -> Self {
         self.auth_method = AuthenticationMethod::Token { token };
+        self
+    }
+
+    /// Are we using https?
+    pub fn use_tls(mut self, setting: bool) -> Self {
+        self.use_tls = setting;
         self
     }
 
