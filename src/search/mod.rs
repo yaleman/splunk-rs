@@ -6,13 +6,14 @@ use serde::{Deserialize, Serialize};
 // use serde_json::Value;
 use std::collections::HashMap;
 
-use crate::ServerConfig;
 
 #[macro_use]
 pub mod searchjob;
 pub mod kvstore;
 
 pub use searchjob::{SearchJob, SearchResult};
+
+use crate::ServerConfig;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 /// The current auth method for the search client
