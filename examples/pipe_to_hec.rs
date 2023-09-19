@@ -15,6 +15,10 @@ struct Cli {
     port: Option<u16>,
     #[arg(short, long)]
     token: Option<String>,
+    #[arg(short, long)]
+    source: Option<String>,
+    #[arg(short = 'S', long)]
+    sourcetype: Option<String>,
 }
 
 #[tokio::main]
@@ -33,10 +37,15 @@ async fn main() -> Result<(), String> {
     if let Some(hostname) = cli.hostname {
         hec.serverconfig = hec.serverconfig.with_hostname(hostname);
     }
-
-    if let Some(cli_token) = cli.token {
-        hec.serverconfig = hec.serverconfig.with_token(cli_token);
+    if let Some(index) = cli.index {
+        hec = hec.with_index(index);
     }
+    if let Some(val) = cli.source {
+        hec = hec.with_source(val)
+    };
+    if let Some(val) = cli.sourcetype {
+        hec = hec.with_sourcetype(val)
+    };
 
     eprintln!("config: {hec:?}");
     eprintln!("Waiting for input...");
@@ -61,5 +70,10 @@ async fn main() -> Result<(), String> {
 
         buffer.clear();
     }
+    match hec.flush(None).await {
+        Ok(val) => eprintln!("Sent {} events!", val),
+        Err(err) => eprintln!("Failure sending event: {err:?}"),
+    }
+
     Ok(())
 }
