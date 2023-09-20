@@ -7,20 +7,21 @@ use splunk::hec::HecClient;
 
 #[derive(Parser)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_INDEX")]
     index: Option<String>,
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, env = "SPLUNK_HOSTNAME")]
     hostname: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_PORT")]
     port: Option<u16>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_TOKEN")]
     token: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_SOURCE")]
     source: Option<String>,
-    #[arg(short = 'S', long)]
+    #[arg(short = 'S', long, env = "SPLUNK_SOURCETYPE")]
     sourcetype: Option<String>,
-    #[arg(long)]
+    #[arg(long, action, env = "SPLUNK_NO_VERIFY_TLS")]
     no_verify_tls: Option<bool>,
+
     filename: String,
 }
 
@@ -34,7 +35,6 @@ async fn main() -> Result<(), String> {
     };
 
     // in case they're using environment variables
-    // let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
     let serverconfig = splunk::ServerConfig::default().with_verify_tls(!no_verify_tls);
 
     // set up the HecClient
