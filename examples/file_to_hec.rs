@@ -19,6 +19,8 @@ struct Cli {
     source: Option<String>,
     #[arg(short = 'S', long)]
     sourcetype: Option<String>,
+    #[arg(long)]
+    no_verify_tls: Option<bool>,
     filename: String,
 }
 
@@ -26,8 +28,14 @@ struct Cli {
 async fn main() -> Result<(), String> {
     let cli = Cli::parse();
 
+    let no_verify_tls = match cli.no_verify_tls {
+        Some(val) => val,
+        None => false,
+    };
+
     // in case they're using environment variables
-    let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
+    // let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
+    let serverconfig = splunk::ServerConfig::default().with_verify_tls(!no_verify_tls);
 
     // set up the HecClient
     let mut hec = HecClient::with_serverconfig(serverconfig);
