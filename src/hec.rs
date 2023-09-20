@@ -7,7 +7,7 @@ use std::cmp::min;
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use log::error;
+use log::{debug, error};
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -41,7 +41,6 @@ impl Default for HecClient {
                 hostname: "localhost".to_string(),
                 port: 8088,
                 verify_tls: true,
-                validate_ssl: true,
                 auth_method: crate::search::AuthenticationMethod::Unknown,
                 ..Default::default()
             },
@@ -196,8 +195,11 @@ impl HecClient {
             .user_agent(&self.useragent)
             .redirect(Policy::none());
 
-        if self.serverconfig.verify_tls {
+        if !self.serverconfig.verify_tls {
+            debug!("Skipping TLS verification");
             client = client.danger_accept_invalid_certs(true);
+        } else {
+            debug!("Enabling TLS verification");
         }
 
         client.build()

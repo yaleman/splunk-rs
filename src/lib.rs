@@ -33,7 +33,6 @@ pub struct ServerConfig {
     pub hostname: String,
     /// Port - defaults to 8089
     pub port: u16,
-    validate_ssl: bool,
     verify_tls: bool,
     use_tls: bool,
     auth_method: AuthenticationMethod,
@@ -45,7 +44,6 @@ impl Default for ServerConfig {
         Self {
             hostname: "localhost".to_string(),
             port: 8089,
-            validate_ssl: true,
             verify_tls: true,
             use_tls: true,
             auth_method: AuthenticationMethod::Unknown,
