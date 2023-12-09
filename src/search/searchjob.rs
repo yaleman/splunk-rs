@@ -7,17 +7,19 @@ use std::collections::HashMap;
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 
+use crate::errors::SplunkError;
+
 use super::SplunkClient;
 
-/// Error types for when we're trying to do searches
-#[derive(Debug)]
-pub enum SearchJobBuilderError {
-    /// While creating the search it failed in some way
-    CreateFailed {
-        /// The error message
-        message: String,
-    },
-}
+// /// Error types for when we're trying to do searches
+// #[derive(Debug)]
+// pub enum SearchJobBuilderError {
+//     /// While creating the search it failed in some way
+//     CreateFailed {
+//         /// The error message
+//         message: String,
+//     },
+// }
 
 #[derive(Debug, Clone)]
 /// What kind of search mode we're using
@@ -184,10 +186,7 @@ impl SearchJobBuilder {
     /// Consume the builder, start the job and return a search job object
     ///
     /// Options <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fv2.2Fjobs.2Fexport>
-    pub async fn create(
-        self,
-        client: &mut SplunkClient,
-    ) -> Result<SearchJob, SearchJobBuilderError> {
+    pub async fn create(self, client: &mut SplunkClient) -> Result<SearchJob, SplunkError> {
         // let endpoint = "/services/search/jobs/v2/export";
         let endpoint = "/services/search/jobs/export";
         let mut payload: HashMap<&str, String> = HashMap::new();
@@ -231,7 +230,7 @@ impl SearchJobBuilder {
         payload.insert("search", self.query.clone());
 
         let result = match client.do_post(endpoint, payload).await {
-            Err(err) => return Err(SearchJobBuilderError::CreateFailed { message: err }),
+            Err(err) => return Err(SplunkError::SearchCreationFailed(format!("{:?}", err))),
             Ok(val) => val,
         };
 

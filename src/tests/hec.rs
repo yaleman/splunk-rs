@@ -2,9 +2,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
+use crate::errors::SplunkError;
+
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
-async fn test_hec_endpoint_health() -> Result<(), String> {
+async fn test_hec_endpoint_health() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
     use crate::{ServerConfig, ServerConfigType};
 
@@ -17,7 +19,7 @@ async fn test_hec_endpoint_health() -> Result<(), String> {
 
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn test_hec_endpoint_health_ack() -> Result<(), String> {
+async fn test_hec_endpoint_health_ack() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
     use crate::{ServerConfig, ServerConfigType};
 
@@ -31,7 +33,7 @@ async fn test_hec_endpoint_health_ack() -> Result<(), String> {
 
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn send_test_data() -> Result<(), String> {
+async fn send_test_data() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
 
     use serde_json::json;
@@ -44,9 +46,14 @@ async fn send_test_data() -> Result<(), String> {
     let now = SystemTime::now();
     let unix_time = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
+    let test_event = json!({
+        "test" :1, "_time" : unix_time, "message" : "Hello from splunk-rs testing",
+    });
+
     client
-        .send_event(json!(format!("{{\"test\" : 1, \"_time\" : {unix_time}, \"message\" : \"Hello from splunk-rs testing\" }}")))
-        .await.map_err(|e| e.to_string())
+        .send_event(test_event)
+        .await
+        .map_err(|e| SplunkError::Generic(e.to_string()))
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -77,7 +84,7 @@ impl From<TestEvent> for Value {
 
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn send_queued_multi_overized_batch() -> Result<(), String> {
+async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
 
     use crate::{ServerConfig, ServerConfigType};
@@ -87,17 +94,20 @@ async fn send_queued_multi_overized_batch() -> Result<(), String> {
 
     for i in 0..3 {
         let event = TestEvent::new("send_queued_multi", format!("Event {:?}", i));
-        client.enqueue(event.into()).await;
+        client.enqueue(event).await;
     }
 
-    client.flush(Some(20)).await.map_err(|e| e.to_string())?;
+    client
+        .flush(Some(20))
+        .await
+        .map_err(|err| SplunkError::Generic(err.to_string()))?;
     Ok(())
 }
 
 // This'll turn up in the logs when you search for *monkeymonkeymonkey* sourcetype="*:access" */services/collector*
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn send_with_custom_useragent() -> Result<(), String> {
+async fn send_with_custom_useragent() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
     use crate::{ServerConfig, ServerConfigType};
 
@@ -108,8 +118,11 @@ async fn send_with_custom_useragent() -> Result<(), String> {
 
     for i in 0..3 {
         let event = TestEvent::new("send_with_custom_useragent", format!("Event {:?}", i));
-        client.enqueue(event.into()).await;
+        client.enqueue(event).await;
     }
-    client.flush(Some(20)).await.map_err(|e| e.to_string())?;
+    client
+        .flush(Some(20))
+        .await
+        .map_err(|err| SplunkError::Generic(err.to_string()))?;
     Ok(())
 }

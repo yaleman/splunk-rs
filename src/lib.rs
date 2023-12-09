@@ -5,10 +5,12 @@
 use std::env;
 use std::str::FromStr;
 
+use client::AuthenticationMethod;
 use reqwest::header::HeaderMap;
 use reqwest::{Client, Response, Url};
-use search::AuthenticationMethod;
 use serde::{Deserialize, Serialize};
+
+use crate::errors::SplunkError;
 
 #[macro_use]
 extern crate lazy_static;
@@ -16,12 +18,12 @@ extern crate lazy_static;
 #[allow(unused_imports)]
 #[macro_use]
 extern crate tokio;
-
-#[cfg(feature = "hec")]
+pub mod errors;
 pub mod hec;
-#[cfg(feature = "search")]
 #[macro_use]
 pub mod search;
+
+pub mod client;
 
 #[cfg(test)]
 mod tests;
@@ -63,7 +65,7 @@ impl ServerConfig {
     /// let expected_response = Url::from_str("https://localhost:8088/hello").unwrap();
     /// assert_eq!(client.serverconfig.get_url("/hello").unwrap(), expected_response);
     /// ```
-    pub fn get_url(&self, endpoint: &str) -> Result<Url, String> {
+    pub fn get_url(&self, endpoint: impl ToString) -> Result<Url, String> {
         let mut result = String::new();
 
         result.push_str(match self.use_tls {
@@ -76,7 +78,7 @@ impl ServerConfig {
         if (self.verify_tls && self.port != 443) || (!self.verify_tls && self.port != 80) {
             result.push_str(&format!(":{}", self.port));
         }
-        result.push_str(endpoint);
+        result.push_str(&endpoint.to_string());
         Url::from_str(&result).map_err(|e| format!("{e:?}"))
     }
 
@@ -148,9 +150,10 @@ impl ServerConfig {
                 );
                 request.headers(headers)
             }
+            AuthenticationMethod::Basic { username, password } => {
+                request.basic_auth(username, Some(password))
+            }
             _ => todo!("haven't handled all the things yet"),
-            // AuthenticatedSessionMode::Cookie { value: _ } => todo!(),
-            // AuthenticatedSessionMode::Unset => todo!(),
         };
 
         // eprintln!("{:#?}", request);
@@ -176,7 +179,7 @@ impl ServerConfig {
     }
 
     /// Grabs a [ServerConfig] from environment variables
-    pub fn try_from_env(configtype: ServerConfigType) -> Result<ServerConfig, String> {
+    pub fn try_from_env(configtype: ServerConfigType) -> Result<ServerConfig, SplunkError> {
         let env_prefix = match configtype {
             ServerConfigType::Hec => "SPLUNK_HEC_",
             ServerConfigType::Api => "SPLUNK_API_",
@@ -185,8 +188,10 @@ impl ServerConfig {
         let hostname = match env::var(format!("{env_prefix}HOSTNAME")) {
             Ok(val) => val,
             Err(_) => {
-                let error = format!("Please ensure env var {env_prefix}HOSTNAME is set");
-                eprintln!("{}", error);
+                let error = SplunkError::Generic(format!(
+                    "Please ensure env var {env_prefix}HOSTNAME is set"
+                ));
+                eprintln!("{:?}", error);
                 return Err(error);
             }
         };

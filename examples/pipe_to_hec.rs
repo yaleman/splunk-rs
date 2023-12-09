@@ -3,6 +3,7 @@ use std::io;
 /// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
+use splunk::errors::SplunkError;
 use splunk::hec::HecClient;
 
 #[derive(Parser)]
@@ -22,7 +23,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), String> {
+async fn main() -> Result<(), SplunkError> {
     let cli = Cli::parse();
 
     // in case they're using environment variables
@@ -53,7 +54,7 @@ async fn main() -> Result<(), String> {
     let stdin = io::stdin(); // We get `Stdin` here.
     while stdin
         .read_line(&mut buffer)
-        .map_err(|err| err.to_string())?
+        .map_err(|err| SplunkError::Generic(err.to_string()))?
         > 0
     {
         if buffer.trim().len() != 0 {

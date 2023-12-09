@@ -13,7 +13,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 
-use crate::search::AuthenticationMethod;
+use crate::client::AuthenticationMethod;
+use crate::errors::SplunkError;
 use crate::ServerConfig;
 
 /// HEC Client
@@ -41,7 +42,7 @@ impl Default for HecClient {
                 hostname: "localhost".to_string(),
                 port: 8088,
                 verify_tls: true,
-                auth_method: crate::search::AuthenticationMethod::Unknown,
+                auth_method: crate::client::AuthenticationMethod::Unknown,
                 ..Default::default()
             },
             index: None,
@@ -91,7 +92,7 @@ impl HecClient {
         self.useragent = useragent.to_string();
     }
 
-    async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, String> {
+    async fn do_healthcheck(&self, endpoint: &str) -> Result<HecHealthResult, SplunkError> {
         let res = self
             .serverconfig
             .do_get(endpoint)
@@ -100,16 +101,16 @@ impl HecClient {
             .json::<HecHealthResult>()
             .await;
 
-        res.map_err(|e| format!("{e:?}"))
+        res.map_err(|e| SplunkError::Generic(format!("{e:?}")))
     }
 
     /// Do a healthcheck and return the response
-    pub async fn get_health(&self) -> Result<HecHealthResult, String> {
+    pub async fn get_health(&self) -> Result<HecHealthResult, SplunkError> {
         self.do_healthcheck("/services/collector/health").await
     }
 
     /// The separate HEC health endpoint for ACK-related/enabled hosts
-    pub async fn get_health_ack(&self) -> Result<HecHealthResult, String> {
+    pub async fn get_health_ack(&self) -> Result<HecHealthResult, SplunkError> {
         self.do_healthcheck("/services/collector/health?ack=true")
             .await
     }
@@ -132,8 +133,8 @@ impl HecClient {
         self
     }
 
-    /// send a single event to the HEC endpoint
-    pub async fn send_event(&self, event: Value) -> Result<(), Error> {
+    /// Send a single event to the HEC endpoint
+    pub async fn send_event(&self, event: impl Serialize) -> Result<(), Error> {
         // Create a reqwest Client to send the HTTP request
         let client = self.get_client()?;
 
@@ -206,7 +207,7 @@ impl HecClient {
     }
 
     /// send data to the HEC endpoint
-    pub async fn send_events(&self, events: Vec<Value>) -> Result<(), Error> {
+    pub async fn send_events(&self, events: Vec<impl Serialize>) -> Result<(), Error> {
         // Create a reqwest Client to send the HTTP request
         let client = self.get_client()?;
 
@@ -267,8 +268,8 @@ impl HecClient {
     }
 
     /// add a new queue item
-    pub async fn enqueue(&mut self, event: Value) {
-        self.queue.write().await.push_back(Box::new(event))
+    pub async fn enqueue(&mut self, event: impl Serialize) {
+        self.queue.write().await.push_back(Box::new(json!(event)))
     }
 
     /// get the current queue size

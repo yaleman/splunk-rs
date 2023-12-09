@@ -3,8 +3,8 @@ use std::io::Read;
 /// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
+use splunk::errors::SplunkError;
 use splunk::hec::HecClient;
-use splunk::ServerConfig;
 
 #[derive(Parser)]
 struct Cli {
@@ -27,7 +27,7 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), String> {
+async fn main() -> Result<(), SplunkError> {
     let cli = Cli::parse();
 
     // in case they're using environment variables
@@ -66,9 +66,10 @@ async fn main() -> Result<(), String> {
 
     // open the file and read the contents into a buffer
     let mut buffer = String::new();
-    let mut file = std::fs::File::open(cli.filename).map_err(|err| err.to_string())?;
+    let mut file =
+        std::fs::File::open(cli.filename).map_err(|err| SplunkError::Generic(err.to_string()))?;
     file.read_to_string(&mut buffer)
-        .map_err(|err| err.to_string())?;
+        .map_err(|err| SplunkError::Generic(err.to_string()))?;
 
     let data = json!(buffer.trim());
     hec.enqueue(data).await;
