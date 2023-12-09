@@ -7,6 +7,7 @@ use crate::client::{add_query_params_to_endpoint, ApiResponsePaging, SplunkClien
 use crate::errors::SplunkError;
 use crate::{ServerConfig, ServerConfigType};
 
+#[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn test_get_saved_searches() -> Result<(), SplunkError> {
     let serverconfig = ServerConfig::try_from_env(ServerConfigType::Api)?;
