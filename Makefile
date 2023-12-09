@@ -36,3 +36,13 @@ watch/doc: ## Watch the source dir and build the library when the source changes
 watch/build:
 	cargo watch -w splunk --no-restart -s 'make'
 
+.PHONY: precommit
+precommit: ## Do the pre-commit-pre-publish things
+precommit: fmt
+	cargo clippy
+	cargo test
+	cargo test --release
+	cargo build
+	cargo build --release
+	cargo outdated
+	cargo audit

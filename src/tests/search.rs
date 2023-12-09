@@ -1,7 +1,9 @@
+use crate::client::SplunkClient;
+use crate::errors::SplunkError;
+
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
-async fn test_search_login() -> Result<(), String> {
-    use crate::search::SplunkClient;
+async fn test_search_login() -> Result<(), SplunkError> {
     use crate::{ServerConfig, ServerConfigType};
 
     let serverconfig = ServerConfig::try_from_env(ServerConfigType::Api)?;
@@ -16,9 +18,8 @@ async fn test_search_login() -> Result<(), String> {
 
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
-async fn test_search_execution() -> Result<(), String> {
+async fn test_search_execution() -> Result<(), SplunkError> {
     use crate::search::SearchJob;
-    use crate::search::SplunkClient;
     use crate::{ServerConfig, ServerConfigType};
     use futures::stream::TryStreamExt; // for map_err
     use tokio::io::AsyncBufReadExt;
@@ -64,7 +65,7 @@ async fn test_search_execution() -> Result<(), String> {
 #[cfg(feature = "xml_raw")]
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
-async fn test_get_current_context() -> Result<(), String> {
+async fn test_get_current_context() -> Result<(), SplunkError> {
     use crate::search::SplunkClient;
     let serverconfig = crate::tests::get_serverconfig(crate::tests::TestServerConfig::Api)?;
 
@@ -80,7 +81,7 @@ async fn test_get_current_context() -> Result<(), String> {
 #[cfg(feature = "xml_raw")]
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
-async fn test_get_capabilities() -> Result<(), String> {
+async fn test_get_capabilities() -> Result<(), SplunkError> {
     use crate::search::SplunkClient;
     let serverconfig = crate::tests::get_serverconfig(crate::tests::TestServerConfig::Api)?;
 
