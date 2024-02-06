@@ -2,24 +2,16 @@
 //!
 //!
 
+use futures_util::TryStreamExt;
 use std::collections::HashMap;
-
-use reqwest::Response;
+use tokio::io::AsyncBufReadExt;
+// for map_err
 use serde::{Deserialize, Serialize};
+use tokio_util::io::StreamReader;
 
 use crate::errors::SplunkError;
 
 use super::SplunkClient;
-
-// /// Error types for when we're trying to do searches
-// #[derive(Debug)]
-// pub enum SearchJobBuilderError {
-//     /// While creating the search it failed in some way
-//     CreateFailed {
-//         /// The error message
-//         message: String,
-//     },
-// }
 
 #[derive(Debug, Clone)]
 /// What kind of search mode we're using
@@ -229,7 +221,7 @@ impl SearchJobBuilder {
         // time to include the search
         payload.insert("search", self.query.clone());
 
-        let result = match client.do_post(endpoint, payload).await {
+        let creation_response = match client.do_post(endpoint, payload).await {
             Err(err) => return Err(SplunkError::SearchCreationFailed(format!("{:?}", err))),
             Ok(val) => val,
         };
@@ -242,7 +234,7 @@ impl SearchJobBuilder {
             fields: self.fields,
             exec_mode: self.exec_mode,
             sid: None,
-            creation_response: result,
+            creation_response,
         })
     }
 
@@ -277,7 +269,7 @@ pub struct SearchJob {
     /// set the search ID on creation
     pub sid: Option<String>,
     /// The raw `reqwest::Response` object
-    pub creation_response: Response,
+    pub creation_response: reqwest::Response,
 }
 
 #[allow(unused_macros)]
@@ -295,4 +287,31 @@ impl SearchJob {
             ..Default::default()
         }
     }
+
+    /// Take the results of a search and run a function over them
+    pub async fn map<T>(
+        self,
+        map_func: impl Fn(String) -> Result<T, SplunkError>,
+    ) -> Result<Vec<T>, SplunkError>
+    where
+        T: Serialize,
+    {
+        let mut lines =
+            StreamReader::new(self.creation_response.bytes_stream().map_err(convert_err)).lines();
+
+        let mut res = Vec::new();
+
+        while let Some(line) = lines.next_line().await.map_err(|err| err.to_string())? {
+            res.push(map_func(line)?);
+        }
+        Ok(res)
+    }
+}
+
+/// Converter function for erorrs when handling the stream
+fn convert_err(err: reqwest::Error) -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::Other,
+        format!("Failed to handle stream response: {:?}", err),
+    )
 }

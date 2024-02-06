@@ -194,8 +194,7 @@ impl SplunkClient {
     /// Get the authenticated session owner username.
     /// <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTaccess#authentication.2Fcurrent-context>
     /// Currently returns just the raw XML result as a string
-    #[cfg(feature = "xml_raw")]
-    pub async fn get_current_context(&mut self) -> Result<String, String> {
+    pub async fn get_current_context(&mut self) -> Result<String, SplunkError> {
         let endpoint = "/services/authentication/current-context";
 
         let res = self.do_get(endpoint).await?;
@@ -208,7 +207,6 @@ impl SplunkClient {
     /// <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTaccess#authorization.2Fcapabilities>
     ///
     /// Currently returns just the raw XML result as a string
-    #[cfg(feature = "xml_raw")]
     pub async fn get_capabilities(&mut self) -> Result<String, SplunkError> {
         let endpoint = "/services/authorization/capabilities";
 
@@ -217,7 +215,7 @@ impl SplunkClient {
             .text()
             .await
             .map_err(|e| SplunkError::Generic(format!("{e:?}")))?;
-        res
+        Ok(res)
     }
 
     /// Get the saved searches from an instance

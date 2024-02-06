@@ -12,9 +12,12 @@ use crate::client::SplunkClient;
 use crate::errors::SplunkError;
 
 #[async_trait]
-trait SplunkSearch {
+/// Search trait for the Splunk client
+pub trait SplunkSearch {
+    /// Do a search and get a search job
     fn search(&self, query: &str) -> Result<SearchJob, String>;
-    async fn export() -> Result<(), SplunkError>;
+    /// Do an "export" type search
+    async fn export(&self) -> Result<(), SplunkError>;
 }
 
 #[async_trait]
@@ -24,7 +27,7 @@ impl SplunkSearch for SplunkClient {
     }
 
     /// do an export-search - TODO
-    async fn export() -> Result<(), SplunkError> {
+    async fn export(&self) -> Result<(), SplunkError> {
         unimplemented!();
     }
 }
