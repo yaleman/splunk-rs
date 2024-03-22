@@ -3,8 +3,6 @@ name: GitHub Pages
 
 "on":
   push:
-    branches:
-      - "main"
 
 permissions:
   contents: read
@@ -15,11 +13,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  deploy_book:
+  build_book:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,10 +25,22 @@ jobs:
           toolchain: stable
       - name: Make all the books
         run: make doc
+      - name: Fix permissions
+        run: |
+          chmod -c -R +rX './target/doc/' | xargs -I {} echo "::warning title=Invalid file permissions automatically fixed::{}"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: './target/doc/'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+  deploy_book:
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'main' }}
+    needs:
+      - build_book
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
