@@ -30,6 +30,9 @@ jobs:
           toolchain: stable
       - name: Make all the books
         run: make doc
+      - name: Fix permissions
+        run: |
+          chmod -c -R +rX './target/doc/' | xargs -I {} echo "::warning title=Invalid file permissions automatically fixed::{}"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
