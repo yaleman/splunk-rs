@@ -4,6 +4,7 @@
 
 use futures_util::TryStreamExt;
 use std::collections::HashMap;
+use std::fmt::Display;
 use tokio::io::AsyncBufReadExt;
 // for map_err
 use serde::{Deserialize, Serialize};
@@ -22,14 +23,14 @@ pub enum SearchExecMode {
     /// "Normal" mode.
     Normal,
 }
-impl ToString for SearchExecMode {
-    fn to_string(&self) -> String {
-        match self {
-            SearchExecMode::Blocking => "blocking",
-            SearchExecMode::OneShot => "oneshot",
-            SearchExecMode::Normal => "normal",
-        }
-        .to_string()
+
+impl Display for SearchExecMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Blocking => "blocking",
+            Self::OneShot => "oneshot",
+            Self::Normal => "normal",
+        })
     }
 }
 
@@ -44,13 +45,13 @@ pub enum AdHocSearchLevel {
     Verbose,
 }
 
-impl ToString for AdHocSearchLevel {
-    fn to_string(&self) -> String {
-        match self {
-            AdHocSearchLevel::Verbose => "verbose".to_string(),
-            AdHocSearchLevel::Fast => "fast".to_string(),
-            AdHocSearchLevel::Smart => "smart".to_string(),
-        }
+impl Display for AdHocSearchLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Verbose => "verbose",
+            Self::Fast => "fast",
+            Self::Smart => "smart",
+        })
     }
 }
 
@@ -68,18 +69,17 @@ pub enum SearchOutputMode {
     Xml,
 }
 
-impl ToString for SearchOutputMode {
-    fn to_string(&self) -> String {
-        match self {
-            SearchOutputMode::Json => "json",
-            SearchOutputMode::Atom => "atom",
-            SearchOutputMode::Csv => "csv",
-            SearchOutputMode::JsonCols => "json_cols",
-            SearchOutputMode::JsonRows => "json_rows",
-            SearchOutputMode::Raw => "raw",
-            SearchOutputMode::Xml => "xml",
-        }
-        .to_string()
+impl Display for SearchOutputMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Json => "json",
+            Self::Atom => "atom",
+            Self::Csv => "csv",
+            Self::JsonCols => "json_cols",
+            Self::JsonRows => "json_rows",
+            Self::Raw => "raw",
+            Self::Xml => "xml",
+        })
     }
 }
 
