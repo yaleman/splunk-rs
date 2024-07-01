@@ -20,6 +20,9 @@ struct Cli {
     source: Option<String>,
     #[arg(short = 'S', long)]
     sourcetype: Option<String>,
+    /// Enable debug mode
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    debug: Option<bool>,
 }
 
 #[tokio::main]
@@ -48,8 +51,11 @@ async fn main() -> Result<(), SplunkError> {
         hec = hec.with_sourcetype(val)
     };
 
-    eprintln!("config: {hec:?}");
-    eprintln!("Waiting for input...");
+    if cli.debug.unwrap_or_default() {
+        eprintln!("config: {hec:?}");
+        eprintln!("Waiting for input...");
+    }
+
     let mut buffer = String::new();
     let stdin = io::stdin(); // We get `Stdin` here.
     while stdin
@@ -59,7 +65,10 @@ async fn main() -> Result<(), SplunkError> {
     {
         if buffer.trim().len() != 0 {
             let data = json!(buffer.trim());
-            eprintln!("Sending {data:?}");
+
+            if cli.debug.unwrap_or_default() {
+                eprintln!("Sending {data:?}");
+            }
             hec.enqueue(data).await;
         }
         if hec.queue_size().await >= 10 {

@@ -23,7 +23,12 @@ struct Cli {
     #[arg(long, action, env = "SPLUNK_NO_VERIFY_TLS", default_value_t = false)]
     no_verify_tls: bool,
 
+    /// Filename to import
     filename: String,
+
+    /// Enable debug mode
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    debug: Option<bool>,
 }
 
 #[tokio::main]
@@ -62,7 +67,7 @@ async fn main() -> Result<(), SplunkError> {
         hec = hec.with_sourcetype(val)
     };
 
-    println!("{:?}", hec);
+    eprintln!("{:?}", hec);
 
     // open the file and read the contents into a buffer
     let mut buffer = String::new();
