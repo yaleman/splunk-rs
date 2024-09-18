@@ -7,21 +7,22 @@ use splunk::errors::SplunkError;
 use splunk::hec::HecClient;
 
 #[derive(Parser)]
+#[command(version, about)]
 struct Cli {
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_INDEX")]
     index: Option<String>,
-    #[arg(short = 'n', long)]
+    #[arg(short = 'n', long, env = "SPLUNK_HOSTNAME")]
     hostname: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_PORT")]
     port: Option<u16>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_TOKEN")]
     token: Option<String>,
-    #[arg(short, long)]
+    #[arg(short, long, env = "SPLUNK_SOURCE")]
     source: Option<String>,
-    #[arg(short = 'S', long)]
+    #[arg(short = 'S', long, env = "SPLUNK_SOURCETYPE")]
     sourcetype: Option<String>,
     /// Enable debug mode
-    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    #[arg(short, long, action = clap::ArgAction::SetTrue, env)]
     debug: Option<bool>,
 }
 
