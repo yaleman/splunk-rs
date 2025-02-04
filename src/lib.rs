@@ -12,9 +12,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::errors::SplunkError;
 
-#[macro_use]
-extern crate lazy_static;
-
 #[allow(unused_imports)]
 #[macro_use]
 extern crate tokio;
