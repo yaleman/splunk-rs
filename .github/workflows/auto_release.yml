@@ -20,6 +20,8 @@ jobs:
         with:
           title: "Release ${{ github.ref }}"
           prerelease: false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: startsWith(github.ref, 'refs/tags/v')
   latest-release:
     name: "Dev Release"
@@ -31,4 +33,6 @@ jobs:
           title: Dev release
           tag: "dev"
           prerelease: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         if: ${{ github.ref == 'refs/heads/main'}}
