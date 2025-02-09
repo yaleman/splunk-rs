@@ -5,6 +5,10 @@ name: "Release Automation"
   push:
     branches:
       - main
+permissions:
+  # https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token
+  contents: write
+
 
 jobs:
   tagged-release:
@@ -12,9 +16,9 @@ jobs:
     runs-on: "ubuntu-latest"
 
     steps:
-      - uses: "marvinpinto/action-automatic-releases@latest"
+      - uses: elgohr/Github-Release-Action@v5
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          title: "Release ${{ github.ref }}"
           prerelease: false
         if: startsWith(github.ref, 'refs/tags/v')
   latest-release:
@@ -22,9 +26,9 @@ jobs:
     runs-on: "ubuntu-latest"
 
     steps:
-      - uses: "marvinpinto/action-automatic-releases@latest"
+      - uses: elgohr/Github-Release-Action@v5
         with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "dev"
+          title: Dev release
+          tag: "dev"
           prerelease: true
         if: ${{ github.ref == 'refs/heads/main'}}
