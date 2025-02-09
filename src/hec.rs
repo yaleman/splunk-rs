@@ -5,10 +5,9 @@
 
 use std::cmp::min;
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use log::{debug, error};
-use once_cell::sync::Lazy;
 use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -57,8 +56,8 @@ impl Default for HecClient {
 }
 
 /// The expected response from a health check
-pub static HEC_HEALTH_EXPECTED_RESPONSE: Lazy<serde_json::Value> =
-    Lazy::new(|| serde_json::json!("{\"text\":\"HEC is healthy\",\"code\":17}"));
+pub static HEC_HEALTH_EXPECTED_RESPONSE: LazyLock<serde_json::Value> =
+    LazyLock::new(|| serde_json::json!("{\"text\":\"HEC is healthy\",\"code\":17}"));
 
 #[derive(Debug, Serialize, Deserialize)]
 /// Deserializer for the response from HEC Health Checks
