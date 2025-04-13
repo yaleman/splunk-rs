@@ -168,14 +168,19 @@ pub struct XMLResponseSid {
 /// Deserializer for Atom/XML response data
 pub struct SearchResult {
     #[serde(skip_serializing_if = "Option::is_none")]
-    preview: Option<bool>,
+    /// Is this a preview row?
+    pub preview: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    offset: Option<usize>,
+    /// Offset index of the row
+    pub offset: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    lastrow: Option<bool>,
+    /// Is this the last row in the result set?
+    pub lastrow: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    messages: Option<serde_json::Value>,
-    result: Option<serde_json::Value>,
+    /// Message from the server
+    pub messages: Option<serde_json::Value>,
+    /// The result
+    pub result: Option<serde_json::Value>,
 }
 
 impl SearchJobBuilder {

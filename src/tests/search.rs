@@ -26,7 +26,7 @@ async fn test_search_execution() -> Result<(), SplunkError> {
 
     eprintln!("{:?}", serverconfig);
 
-    let mut client = SplunkClient::default().with_config(serverconfig);
+    let mut client: SplunkClient = SplunkClient::default().with_config(serverconfig);
     println!("{:#?}", client.serverconfig);
 
     client.login().await?;
