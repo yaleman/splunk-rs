@@ -6,6 +6,7 @@ use futures_util::TryStreamExt;
 use std::collections::HashMap;
 use std::fmt::Display;
 use tokio::io::AsyncBufReadExt;
+use tracing::debug;
 // for map_err
 use serde::{Deserialize, Serialize};
 use tokio_util::io::StreamReader;
@@ -188,8 +189,7 @@ impl SearchJobBuilder {
     ///
     /// Options <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fv2.2Fjobs.2Fexport>
     pub async fn create(self, client: &mut SplunkClient) -> Result<SearchJob, SplunkError> {
-        let endpoint = "/services/search/jobs/v2/export";
-        // let endpoint = "/services/search/jobs/export";
+        let endpoint = "/services/search/v2/jobs/export";
         let mut payload: HashMap<&str, String> = HashMap::new();
 
         self.extra_options.iter().for_each(|(key, value)| {
@@ -230,13 +230,14 @@ impl SearchJobBuilder {
         // time to include the search
         payload.insert("search", self.query.clone());
 
-        eprintln!("Payload: {:?}", payload);
+        debug!("Payload: {:?}", payload);
 
         let creation_response = match client.do_post(endpoint, payload).await {
             Err(err) => return Err(SplunkError::SearchCreationFailed(format!("{:?}", err))),
             Ok(val) => val,
         };
 
+        debug!("Creation response: {:?}", creation_response);
         Ok(SearchJob {
             query: self.query,
             count: self.count.unwrap(),
@@ -330,6 +331,24 @@ impl SearchJob {
             query: query.into(),
             ..Default::default()
         }
+    }
+
+    /// Run a function over the search results and get anything returning a `Some`
+    pub async fn filter_map<T>(
+        self,
+        map_func: impl Fn(String) -> Result<Option<T>, SplunkError>,
+    ) -> Result<Vec<T>, SplunkError> {
+        let mut lines =
+            StreamReader::new(self.creation_response.bytes_stream().map_err(convert_err)).lines();
+
+        let mut res = Vec::new();
+
+        while let Some(line) = lines.next_line().await.map_err(|err| err.to_string())? {
+            if let Some(result) = map_func(line)? {
+                res.push(result);
+            }
+        }
+        Ok(res)
     }
 
     /// Take the results of a search and run a function over them
