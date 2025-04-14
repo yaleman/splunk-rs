@@ -120,9 +120,13 @@ impl SplunkClient {
             // TODO: handle cookie auth for posts?
             AuthenticationMethod::Cookie { cookie: _ } => req,
         };
-        req.send()
-            .await
-            .map_err(|e| SplunkError::Generic(format!("{e:?}")))
+        match req.send().await {
+            Ok(val) => match val.error_for_status() {
+                Ok(val) => Ok(val),
+                Err(err) => Err(SplunkError::ReqwestError(err)),
+            },
+            Err(err) => Err(SplunkError::ReqwestError(err)),
+        }
     }
 
     /// Make a GET request, tries to pass the authentication automagically

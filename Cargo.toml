@@ -1,6 +1,6 @@
 [package]
 name = "splunk"
-version = "0.1.1-alpha8"
+version = "0.1.2"
 edition = "2021"
 description = "Splunk client implementation supporting HEC and REST APIs"
 license = "MIT"
@@ -46,4 +46,5 @@ sxd-xpath = "0.4.2"
 tokio = { version = "1.26.0", features = ["rt", "macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.12", features = ["io-util"] }
 tokio-util = { version = "0.7.7", features = ["io-util", "futures-io"] }
+tracing = "0.1.41"
 urlencoding = "2.1.3"

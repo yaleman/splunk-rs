@@ -12,6 +12,9 @@ pub enum SplunkError {
 
     /// When `serde_json` doesn't like something you did
     SerdeError(serde_json::Error),
+
+    /// When `reqwest` doesn't like something you did
+    ReqwestError(reqwest::Error),
 }
 
 impl From<serde_json::Error> for SplunkError {
