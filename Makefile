@@ -39,7 +39,7 @@ watch/build:
 .PHONY: precommit
 precommit: ## Do the pre-commit-pre-publish things
 precommit: fmt
-	cargo clippy
+	cargo clippy --all-targets
 	cargo test
 	cargo test --release
 	cargo build

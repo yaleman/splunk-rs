@@ -122,10 +122,10 @@ impl SplunkClient {
         };
         match req.send().await {
             Ok(val) => match val.error_for_status() {
-                Ok(val) => return Ok(val),
-                Err(err) => return Err(SplunkError::ReqwestError(err)),
+                Ok(val) => Ok(val),
+                Err(err) => Err(SplunkError::ReqwestError(err)),
             },
-            Err(err) => return Err(SplunkError::ReqwestError(err)),
+            Err(err) => Err(SplunkError::ReqwestError(err)),
         }
     }
 
