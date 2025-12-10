@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, LazyLock};
 
 use log::{debug, error};
-use reqwest::{header::HeaderMap, redirect::Policy, Client, Error};
+use reqwest::{header::HeaderMap, redirect::Policy, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
@@ -68,7 +68,7 @@ pub struct HecHealthResult {
 
 impl HecClient {
     /// Create a new HEC client, specifying the token and hostname. Defaults to port 8088
-    pub fn new(token: impl ToString, hostname: impl ToString) -> Self {
+    pub fn new(token: &str, hostname: &str) -> Self {
         let serverconfig = ServerConfig::new(hostname.to_string())
             .with_token(token.to_string())
             .with_port(8088);
@@ -87,7 +87,7 @@ impl HecClient {
     }
 
     /// Configure a custom user-agent string
-    pub fn useragent(&mut self, useragent: impl ToString) {
+    pub fn useragent(&mut self, useragent: &str) {
         self.useragent = useragent.to_string();
     }
 
@@ -95,8 +95,7 @@ impl HecClient {
         let res = self
             .serverconfig
             .do_get(endpoint)
-            .await
-            .unwrap()
+            .await?
             .json::<HecHealthResult>()
             .await;
 
@@ -115,25 +114,25 @@ impl HecClient {
     }
 
     /// Set the index on the events you'll send
-    pub fn with_index(mut self, index: impl ToString) -> Self {
+    pub fn with_index(mut self, index: &str) -> Self {
         self.index = Some(index.to_string());
         self
     }
 
     /// Set the sourcetype on all events you send
-    pub fn with_sourcetype(mut self, sourcetype: impl ToString) -> Self {
+    pub fn with_sourcetype(mut self, sourcetype: &str) -> Self {
         self.sourcetype = Some(sourcetype.to_string());
         self
     }
 
     /// Set the source on all events you send
-    pub fn with_source(mut self, source: impl ToString) -> Self {
+    pub fn with_source(mut self, source: &str) -> Self {
         self.source = Some(source.to_string());
         self
     }
 
     /// Send a single event to the HEC endpoint
-    pub async fn send_event(&self, event: impl Serialize) -> Result<(), Error> {
+    pub async fn send_event(&self, event: impl Serialize) -> Result<(), SplunkError> {
         // Create a reqwest Client to send the HTTP request
         let client = self.get_client()?;
 
@@ -151,13 +150,14 @@ impl HecClient {
             }
 
             // TODO: does HEC handle cookie auth? I don't think so?
-            AuthenticationMethod::Cookie { cookie: _ } => unimplemented!("Can't use"),
+            AuthenticationMethod::Cookie { cookie: _ } => {
+                return Err(SplunkError::InvalidAuthmethod(
+                    "Cookie is not supported for HEC!",
+                ))
+            }
         };
-        headers.insert(
-            "Authorization",
-            format!("Splunk {}", token).parse().unwrap(),
-        );
-        headers.insert("Content-Type", "application/json".parse().unwrap());
+        headers.insert("Authorization", format!("Splunk {}", token).parse()?);
+        headers.insert("Content-Type", "application/json".parse()?);
 
         // Add index, sourcetype, and source fields to the payload if they are set
         let mut payload = json!({ "event": event });
@@ -179,17 +179,17 @@ impl HecClient {
         let request_builder = client
             .post(&url)
             .headers(headers)
-            .body(serde_json::to_string(&payload).unwrap());
+            .body(serde_json::to_string(&payload)?);
 
         let result = request_builder.send().await?;
 
-        result.error_for_status().unwrap();
+        result.error_for_status()?;
 
         Ok(())
     }
 
     /// Creates the reqwest client with a consistent configuration
-    fn get_client(&self) -> Result<Client, reqwest::Error> {
+    fn get_client(&self) -> Result<Client, SplunkError> {
         let mut client = Client::builder()
             .timeout(std::time::Duration::from_secs(self.timeout))
             .user_agent(&self.useragent)
@@ -202,11 +202,11 @@ impl HecClient {
             debug!("Enabling TLS verification");
         }
 
-        client.build()
+        client.build().map_err(SplunkError::from)
     }
 
     /// send data to the HEC endpoint
-    pub async fn send_events(&self, events: Vec<impl Serialize>) -> Result<(), Error> {
+    pub async fn send_events(&self, events: Vec<impl Serialize>) -> Result<(), SplunkError> {
         // Create a reqwest Client to send the HTTP request
         let client = self.get_client()?;
 
@@ -222,34 +222,32 @@ impl HecClient {
                 error!("Token is not set for HEC Event!");
                 "".to_string()
             }
-            // TODO: does HEC handle cookie auth? I don't think so.
-            AuthenticationMethod::Cookie { cookie: _ } => todo!(),
+            AuthenticationMethod::Cookie { cookie: _ } => {
+                return Err(SplunkError::InvalidAuthmethod(
+                    "Cookie is not supported for HEC!",
+                ))
+            }
         };
-        headers.insert(
-            "Authorization",
-            format!("Splunk {}", token).parse().unwrap(),
-        );
-        headers.insert("Content-Type", "application/json".parse().unwrap());
+        headers.insert("Authorization", format!("Splunk {}", token).parse()?);
+        headers.insert("Content-Type", "application/json".parse()?);
 
-        let payload_vec: Vec<String> = events
-            .into_iter()
-            .map(|event| {
-                // Add index, sourcetype, and source fields to the payload if they are set - but not already in the event!
-                let mut payload = json!({ "event": event });
+        let mut payload_vec: Vec<String> = Vec::new();
 
-                if let Some(index) = &self.index {
-                    payload["index"] = Value::String(index.to_owned());
-                }
-                if let Some(sourcetype) = &self.sourcetype {
-                    payload["sourcetype"] = Value::String(sourcetype.to_owned());
-                }
-                if let Some(source) = &self.source {
-                    payload["source"] = Value::String(source.to_owned());
-                }
-                serde_json::to_string(&payload).unwrap()
-            })
-            .collect();
+        for event in events {
+            // Add index, sourcetype, and source fields to the payload if they are set - but not already in the event!
+            let mut payload = json!({ "event": event });
 
+            if let Some(index) = &self.index {
+                payload["index"] = Value::String(index.to_owned());
+            }
+            if let Some(sourcetype) = &self.sourcetype {
+                payload["sourcetype"] = Value::String(sourcetype.to_owned());
+            }
+            if let Some(source) = &self.source {
+                payload["source"] = Value::String(source.to_owned());
+            }
+            payload_vec.push(serde_json::to_string(&payload)?);
+        }
         let payload = payload_vec.join("\n");
 
         // Send the POST request with the payload and headers to the Splunk HEC endpoint
@@ -261,7 +259,7 @@ impl HecClient {
 
         let result = request_builder.send().await?;
 
-        result.error_for_status().unwrap();
+        result.error_for_status()?;
 
         Ok(())
     }
@@ -277,7 +275,7 @@ impl HecClient {
     }
 
     /// Flush the queue out to HEC, defaults to batches of 1000
-    pub async fn flush(&mut self, batch_size: Option<u32>) -> Result<usize, Error> {
+    pub async fn flush(&mut self, batch_size: Option<u32>) -> Result<usize, SplunkError> {
         if self.queue.read().await.is_empty() {
             return Ok(0);
         }

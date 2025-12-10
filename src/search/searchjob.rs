@@ -89,7 +89,7 @@ impl Display for SearchOutputMode {
 pub struct SearchJobBuilder {
     /// The query string
     query: String,
-    /// How many results we want back
+    /// How many results we want back, defaults to 0 (all)
     count: Option<u64>,
     /// Earliest time in the search, defaults to -24h
     /// The time string can be a UTC time (with fractional seconds), a relative time specifier (to now), or a formatted time string.
@@ -240,7 +240,7 @@ impl SearchJobBuilder {
         debug!("Creation response: {:?}", creation_response);
         Ok(SearchJob {
             query: self.query,
-            count: self.count.unwrap(),
+            count: self.count.unwrap_or(0),
             earliest_time: self.earliest_time,
             latest_time: self.latest_time,
             fields: self.fields,
@@ -338,8 +338,12 @@ impl SearchJob {
         self,
         map_func: impl Fn(String) -> Result<Option<T>, SplunkError>,
     ) -> Result<Vec<T>, SplunkError> {
-        let mut lines =
-            StreamReader::new(self.creation_response.bytes_stream().map_err(convert_err)).lines();
+        let mut lines = StreamReader::new(
+            self.creation_response
+                .bytes_stream()
+                .map_err(std::io::Error::other),
+        )
+        .lines();
 
         let mut res = Vec::new();
 
@@ -359,8 +363,12 @@ impl SearchJob {
     where
         T: Serialize,
     {
-        let mut lines =
-            StreamReader::new(self.creation_response.bytes_stream().map_err(convert_err)).lines();
+        let mut lines = StreamReader::new(
+            self.creation_response
+                .bytes_stream()
+                .map_err(std::io::Error::other),
+        )
+        .lines();
 
         let mut res = Vec::new();
 
@@ -369,12 +377,4 @@ impl SearchJob {
         }
         Ok(res)
     }
-}
-
-/// Converter function for erorrs when handling the stream
-fn convert_err(err: reqwest::Error) -> std::io::Error {
-    std::io::Error::new(
-        std::io::ErrorKind::Other,
-        format!("Failed to handle stream response: {:?}", err),
-    )
 }
