@@ -42,10 +42,10 @@ pub enum AuthenticatedSessionMode {
         value: HashMap<String, String>,
     },
     /// token auth
-    Token {
+    Token(
         /// the token
-        value: String,
-    },
+        String,
+    ),
     /// we haven't set it yet
     Unset,
 }
@@ -74,20 +74,19 @@ impl Default for SplunkClient {
 
 impl SplunkClient {
     /// set the config on build
-    pub fn with_config(self, serverconfig: ServerConfig) -> Self {
+    pub fn with_config(self, serverconfig: ServerConfig) -> Result<Self, SplunkError> {
         let client = match serverconfig.verify_tls {
             true => Client::new(),
             false => Client::builder()
                 .danger_accept_invalid_certs(true)
-                .build()
-                .unwrap(),
+                .build()?,
         };
 
-        Self {
+        Ok(Self {
             serverconfig,
             client,
             ..self
-        }
+        })
     }
 
     /// Set the authentication session mode
@@ -101,12 +100,12 @@ impl SplunkClient {
     /// Make a POST request
     pub async fn do_post(
         &mut self,
-        endpoint: impl ToString,
+        endpoint: &str,
         payload: HashMap<impl Serialize, String>,
     ) -> Result<Response, SplunkError> {
         let req = self
             .client
-            .post(self.serverconfig.get_url(endpoint.to_string()).unwrap())
+            .post(self.serverconfig.get_url(endpoint)?)
             .form(&payload);
 
         let req = match &self.serverconfig.auth_method {
@@ -130,18 +129,13 @@ impl SplunkClient {
     }
 
     /// Make a GET request, tries to pass the authentication automagically
-    pub async fn do_get(&mut self, endpoint: impl ToString) -> Result<Response, SplunkError> {
-        let request = self
-            .client
-            .get(self.serverconfig.get_url(endpoint.to_string()).unwrap());
+    pub async fn do_get(&mut self, endpoint: &str) -> Result<Response, SplunkError> {
+        let request = self.client.get(self.serverconfig.get_url(endpoint)?);
 
         let request = match &self.auth_session_mode {
-            AuthenticatedSessionMode::Token { value } => {
+            AuthenticatedSessionMode::Token(value) => {
                 let mut headers = HeaderMap::new();
-                headers.insert(
-                    "Authorization",
-                    format!("Splunk {}", value).parse().unwrap(),
-                );
+                headers.insert("Authorization", format!("Splunk {}", value).parse()?);
                 request.headers(headers)
             }
             AuthenticatedSessionMode::Cookie { value: _ } => request,
@@ -168,30 +162,32 @@ impl SplunkClient {
                 payload.insert("password".to_string(), password.to_owned());
             }
             // AuthenticationMethod::Token { token } => todo!(),
-            AuthenticationMethod::Unknown => panic!("Please specify an auth method!"),
-            _ => unimplemented!("Token mode isn't supported!"),
+            AuthenticationMethod::Unknown => return Err(SplunkError::NoAuthMethodSelected),
+            #[allow(clippy::todo)]
+            _ => todo!("Token mode isn't supported!"),
         };
 
         let request = self.do_post(endpoint, payload).await?;
 
-        // eprintln!("Response: {:#?}", request.headers());
-        let body = request.text().await.unwrap();
-        let res: serde_json::Value = serde_xml_rs::from_str(&body)
-            .map_err(|e| format!("{e:?}"))
-            .unwrap();
-        let res = match res.get("sessionKey") {
+        #[cfg(test)]
+        eprintln!("Headers: {:#?}", request.headers());
+        let body = request.text().await?;
+        #[cfg(test)]
+        eprintln!("Body: {}", body);
+        let res: SessionKey = serde_xml_rs::from_str(&body)?;
+
+        #[derive(Deserialize)]
+        struct SessionKey {
+            #[serde(rename = "sessionKey")]
+            session_key: Option<String>,
+        }
+        let res = match res.session_key {
             Some(val) => val,
             None => return Err(SplunkError::Generic("Couldn't get sessionKey".to_string())),
         };
-        let res = match res.get("$value") {
-            Some(val) => val.as_str().unwrap().to_string(),
-            None => {
-                return Err(SplunkError::Generic(
-                    "Couldn't get sessionKey.$value from response".to_string(),
-                ))
-            }
-        };
-        self.auth_session_mode = AuthenticatedSessionMode::Token { value: res };
+        eprintln!("Body parsing OK");
+
+        self.auth_session_mode = AuthenticatedSessionMode::Token(res);
         Ok(())
     }
 
@@ -203,7 +199,6 @@ impl SplunkClient {
 
         let res = self.do_get(endpoint).await?;
         let res = res.text().await.map_err(|e| format!("{e:?}"))?;
-        // serde_xml_rs::from_str(&res).map_err(|e| format!("{e:?}"))
         Ok(res)
     }
 
@@ -261,9 +256,10 @@ impl SplunkClient {
         if let Some(add_orphan_field) = add_orphan_field {
             params.insert("add_orphan_field", add_orphan_field.to_string());
         }
-        add_query_params_to_endpoint(&mut endpoint, params);
+        // TODO: this is janky
+        add_query_params_to_endpoint(&mut endpoint, &params);
 
-        let res = self.do_get(endpoint).await?;
+        let res = self.do_get(&endpoint).await?;
         // do the query
         let res_content = res.text().await.map_err(|err| {
             SplunkError::Generic(format!(
@@ -305,7 +301,18 @@ impl SplunkClient {
                 .await?;
             results.extend(res.entry.to_vec());
             if res.paging_has_more() {
-                offset += res.paging.unwrap().per_page;
+                let per_page = res
+                    .paging
+                    .as_ref()
+                    .ok_or_else(|| {
+                        SplunkError::Generic(
+                            "No paging info found after seeing it in initial call - this is a bug!"
+                                .to_string(),
+                        )
+                    })?
+                    .per_page;
+
+                offset += per_page;
             } else {
                 break;
             }
@@ -318,7 +325,7 @@ impl SplunkClient {
 /// Takes a HashMap of key/value pairs to add ot the URL and adds the query values to the endpoint
 pub(crate) fn add_query_params_to_endpoint(
     endpoint: &mut String,
-    params: HashMap<&str, impl ToString>,
+    params: &HashMap<&str, impl ToString>,
 ) {
     if !params.is_empty() {
         endpoint.push('?');

@@ -1,6 +1,6 @@
 [package]
 name = "splunk"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Splunk client implementation supporting HEC and REST APIs"
 license = "MIT"
@@ -11,9 +11,6 @@ homepage = "https://github.com/yaleman/splunk-rs"
 [features]
 cli = ["clap"]
 test_ci = []   # Used when in CI mode, to skip tests
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 
 [[bin]]
 name = "splunk_file_to_hec"
@@ -26,25 +23,25 @@ path = "src/bin/pipe_to_hec.rs"
 required-features = ["cli"]
 
 [dependencies]
-async-trait = "0.1.74"
-bytes = "1.5.0"
-clap = { version = "4.2.1", features = ["derive", "env"], optional = true }
-futures = "0.3.27"
-futures-util = "0.3.27"
-log = "0.4.17"
-reqwest = { version = "^0.12", features = [
+async-trait = "0.1.89"
+bytes = "1.11.0"
+clap = { version = "4.5.53", features = ["derive", "env"], optional = true }
+futures = "0.3.31"
+futures-util = "0.3.31"
+log = "0.4.29"
+reqwest = { version = "^0.12.25", features = [
     "json",
     "stream",
     "cookies",
     "gzip",
 ] }
-serde = { version = "1.0.158", features = ["derive"] }
-serde-xml-rs = "0.8.0"
-serde_json = "1.0.94"
+serde = { version = "1.0.228", features = ["derive"] }
+serde-xml-rs = "0.8.2"
+serde_json = "1.0.145"
 sxd-document = "0.3.2"
 sxd-xpath = "0.4.2"
-tokio = { version = "1.26.0", features = ["rt", "macros", "rt-multi-thread"] }
-tokio-stream = { version = "0.1.12", features = ["io-util"] }
-tokio-util = { version = "0.7.7", features = ["io-util", "futures-io"] }
-tracing = "0.1.41"
+tokio = { version = "1.48.0", features = ["rt", "macros", "rt-multi-thread"] }
+tokio-stream = { version = "0.1.17", features = ["io-util"] }
+tokio-util = { version = "0.7.17", features = ["io-util", "futures-io"] }
+tracing = "0.1.43"
 urlencoding = "2.1.3"

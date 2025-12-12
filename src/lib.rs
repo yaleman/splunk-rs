@@ -1,6 +1,16 @@
-#![warn(missing_docs)]
-
 //! A start on implementing Splunk-SDK-like-things
+#![warn(missing_docs)]
+#![deny(warnings)]
+#![warn(unused_extern_crates)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::unreachable)]
+#![deny(clippy::await_holding_lock)]
+#![deny(clippy::needless_pass_by_value)]
+#![deny(clippy::trivially_copy_pass_by_ref)]
 
 use std::env;
 use std::str::FromStr;
@@ -59,10 +69,10 @@ impl ServerConfig {
     /// use splunk::hec::HecClient;
     ///
     /// let client = HecClient::new("token", "localhost");
-    /// let expected_response = Url::from_str("https://localhost:8088/hello").unwrap();
-    /// assert_eq!(client.serverconfig.get_url("/hello").unwrap(), expected_response);
+    /// let expected_response = Url::from_str("https://localhost:8088/hello").expect("Failed to create URL");
+    /// assert_eq!(client.serverconfig.get_url("/hello").expect("Failed to get URL"), expected_response);
     /// ```
-    pub fn get_url(&self, endpoint: impl ToString) -> Result<Url, String> {
+    pub fn get_url(&self, endpoint: &str) -> Result<Url, String> {
         let mut result = String::new();
 
         result.push_str(match self.use_tls {
@@ -75,7 +85,7 @@ impl ServerConfig {
         if (self.verify_tls && self.port != 443) || (!self.verify_tls && self.port != 80) {
             result.push_str(&format!(":{}", self.port));
         }
-        result.push_str(&endpoint.to_string());
+        result.push_str(endpoint);
         Url::from_str(&result).map_err(|e| format!("{e:?}"))
     }
 
@@ -119,7 +129,7 @@ impl ServerConfig {
     }
 
     /// make a get request to a given endpoint
-    pub async fn do_get(&self, endpoint: &str) -> Result<Response, String> {
+    pub async fn do_get(&self, endpoint: &str) -> Result<Response, SplunkError> {
         let headers = HeaderMap::new();
         self.do_get_with_headers(endpoint, headers).await
     }
@@ -129,32 +139,32 @@ impl ServerConfig {
         &self,
         endpoint: &str,
         add_headers: HeaderMap,
-    ) -> Result<Response, String> {
-        let request = Client::new().get(self.get_url(endpoint).unwrap());
+    ) -> Result<Response, SplunkError> {
+        let request = Client::new().get(self.get_url(endpoint)?);
 
         let mut headers = HeaderMap::new();
 
         // apply the supplied_headers
-        add_headers.into_iter().for_each(|(key, val)| {
-            headers.insert(key.unwrap(), val);
-        });
+        for (key, value) in add_headers.into_iter() {
+            if let Some(key_name) = key {
+                headers.insert(key_name, value);
+            }
+        }
 
         let request = match &self.auth_method {
             AuthenticationMethod::Token { token } => {
-                headers.insert(
-                    "Authorization",
-                    format!("Splunk {}", token).parse().unwrap(),
-                );
+                headers.insert("Authorization", format!("Splunk {}", token).parse()?);
                 request.headers(headers)
             }
             AuthenticationMethod::Basic { username, password } => {
                 request.basic_auth(username, Some(password))
             }
+            #[allow(clippy::todo)]
             _ => todo!("haven't handled all the things yet"),
         };
 
         // eprintln!("{:#?}", request);
-        request.send().await.map_err(|e| format!("{e:?}"))
+        request.send().await.map_err(SplunkError::from)
     }
 
     /// Set the port
@@ -196,25 +206,43 @@ impl ServerConfig {
             Ok(val) => val,
             Err(_) => 8089.to_string(),
         };
-        let port: u16 = port.parse::<u16>().unwrap();
+        let port: u16 = port.parse::<u16>()?;
 
         let config = ServerConfig::new(hostname).with_port(port);
         let config = match configtype {
             ServerConfigType::Hec => {
-                let token = env::var(format!("{env_prefix}TOKEN"))
-                    .expect("Couldn't get SPLUNK_HEC_TOKEN env var");
+                let Ok(token) = env::var(format!("{env_prefix}TOKEN")) else {
+                    let error = SplunkError::Generic(format!(
+                        "Please ensure env var {env_prefix}TOKEN is set"
+                    ));
+                    return Err(error);
+                };
                 config.with_token(token)
             }
-            ServerConfigType::Api => config.with_username_password(
-                env::var("SPLUNK_USERNAME").expect("Couldn't get SPLUNK_USERNAME env var!"),
-                env::var("SPLUNK_PASSWORD").expect("Couldn't get SPLUNK_PASSWORD env var!"),
-            ),
+
+            ServerConfigType::Api => {
+                let Ok(username) = env::var("SPLUNK_USERNAME") else {
+                    let error = SplunkError::Generic(format!(
+                        "Please ensure env var {env_prefix}USERNAME is set"
+                    ));
+                    return Err(error);
+                };
+                let Ok(password) = env::var("SPLUNK_PASSWORD") else {
+                    let error = SplunkError::Generic(format!(
+                        "Please ensure env var {env_prefix}PASSWORD is set"
+                    ));
+                    return Err(error);
+                };
+
+                config.with_username_password(username, password)
+            }
         };
         Ok(config)
     }
 }
 
 /// This is just used in get_serverconfig so you can say "I need a HEC or I need an API one!"
+#[derive(Copy, Clone, Debug)]
 pub enum ServerConfigType {
     /// You're using HTTP Event Collector - looks for SPLUNK_HEC_*
     Hec,

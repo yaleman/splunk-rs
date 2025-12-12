@@ -44,16 +44,13 @@ async fn send_test_data() -> Result<(), SplunkError> {
     let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     let now = SystemTime::now();
-    let unix_time = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let unix_time = now.duration_since(UNIX_EPOCH)?.as_secs();
 
     let test_event = json!({
         "test" :1, "_time" : unix_time, "message" : "Hello from splunk-rs testing",
     });
 
-    client
-        .send_event(test_event)
-        .await
-        .map_err(|e| SplunkError::Generic(e.to_string()))
+    client.send_event(test_event).await
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -64,13 +61,17 @@ struct TestEvent {
     message: String,
 }
 
+#[cfg(test)]
 impl TestEvent {
-    #[allow(dead_code)]
-    fn new(test_name: impl ToString, message: impl ToString) -> Self {
+    #[cfg(test)]
+    fn new(test_name: &str, message: &str) -> Self {
         let now = SystemTime::now();
         Self {
             test_name: test_name.to_string(),
-            time: now.duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            time: now
+                .duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs(),
             message: message.to_string(),
         }
     }
@@ -93,20 +94,17 @@ async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
         HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     for i in 0..3 {
-        let event = TestEvent::new("send_queued_multi", format!("Event {:?}", i));
+        let event = TestEvent::new("send_queued_multi", &format!("Event {:?}", i));
         client.enqueue(event).await;
     }
 
-    client
-        .flush(Some(20))
-        .await
-        .map_err(|err| SplunkError::Generic(err.to_string()))?;
+    client.flush(Some(20)).await?;
     Ok(())
 }
 
 // This'll turn up in the logs when you search for *monkeymonkeymonkey* sourcetype="*:access" */services/collector*
-#[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
+#[cfg_attr(feature = "test_ci", ignore)]
 async fn send_with_custom_useragent() -> Result<(), SplunkError> {
     use crate::hec::HecClient;
     use crate::{ServerConfig, ServerConfigType};
@@ -117,12 +115,10 @@ async fn send_with_custom_useragent() -> Result<(), SplunkError> {
     client.useragent("splunk-rs-monkeymonkeymonkey");
 
     for i in 0..3 {
-        let event = TestEvent::new("send_with_custom_useragent", format!("Event {:?}", i));
+        let event = TestEvent::new("send_with_custom_useragent", &format!("Event {:?}", i));
         client.enqueue(event).await;
     }
-    client
-        .flush(Some(20))
-        .await
-        .map_err(|err| SplunkError::Generic(err.to_string()))?;
+    client.flush(Some(20)).await?;
+
     Ok(())
 }
