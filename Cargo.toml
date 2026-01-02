@@ -29,7 +29,7 @@ clap = { version = "4.5.53", features = ["derive", "env"], optional = true }
 futures = "0.3.31"
 futures-util = "0.3.31"
 log = "0.4.29"
-reqwest = { version = "^0.12.25", features = [
+reqwest = { version = "^0.13.1", features = [
     "json",
     "stream",
     "cookies",
