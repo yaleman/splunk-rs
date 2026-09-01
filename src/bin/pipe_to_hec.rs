@@ -31,25 +31,28 @@ async fn main() -> Result<(), SplunkError> {
     let cli = Cli::parse();
 
     // in case they're using environment variables
-    let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
-
-    // set up the HecClient
-    let mut hec = HecClient::with_serverconfig(serverconfig);
+    let mut serverconfig = splunk::server_config::ServerConfigBuilder::try_from_env(
+        splunk::server_config::ServerConfigType::Hec,
+    )?;
 
     if let Some(port) = cli.port {
-        hec.serverconfig = hec.serverconfig.with_port(port);
+        serverconfig = serverconfig.with_port(port);
     }
     if let Some(hostname) = cli.hostname {
-        hec.serverconfig = hec.serverconfig.with_hostname(hostname);
+        serverconfig = serverconfig.with_hostname(hostname);
     }
+
+    // set up the HecClient
+    let mut hec = HecClient::with_serverconfig(serverconfig.build()?);
+
     if let Some(index) = cli.index {
-        hec = hec.with_index(index);
+        hec = hec.with_index(&index);
     }
     if let Some(val) = cli.source {
-        hec = hec.with_source(val)
+        hec = hec.with_source(&val)
     };
     if let Some(val) = cli.sourcetype {
-        hec = hec.with_sourcetype(val)
+        hec = hec.with_sourcetype(&val)
     };
 
     if cli.debug.unwrap_or_default() {

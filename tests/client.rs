@@ -1,11 +1,12 @@
-//! Client tests
+//! Client integration tests
 //!
 
 use std::collections::HashMap;
 
-use crate::client::{add_query_params_to_endpoint, ApiResponsePaging, SplunkClient};
-use crate::errors::SplunkError;
-use crate::{ServerConfig, ServerConfigType};
+use splunk::client::{add_query_params_to_endpoint, SplunkClient};
+use splunk::errors::SplunkError;
+use splunk::models::responses::ApiResponsePaging;
+use splunk::server_config::{ServerConfig, ServerConfigBuilder, ServerConfigType};
 
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
@@ -27,8 +28,25 @@ async fn test_get_saved_searches() -> Result<(), SplunkError> {
     Ok(())
 }
 
+#[tokio::test]
+async fn test_login() -> Result<(), SplunkError> {
+    let serverconfig = ServerConfigBuilder::default()
+        .use_tls(true)
+        .with_hostname("localhost")
+        .with_port(8089)
+        .with_username_password("admin", "Admin1234!")
+        .with_verify_tls(false)
+        .build()?;
+
+    let mut client = SplunkClient::default().with_config(serverconfig)?;
+
+    client.login().await?;
+
+    Ok(())
+}
+
 #[test]
-async fn test_add_query_params_to_endpoint() {
+fn test_add_query_params_to_endpoint() {
     let mut endpoint = "/services/saved/searches".to_string();
     let mut params = HashMap::new();
     params.insert("earliest_time", "-1d".to_string());
@@ -42,7 +60,7 @@ async fn test_add_query_params_to_endpoint() {
 }
 
 #[test]
-async fn test_apiresponsepaging_has_more() {
+fn test_apiresponsepaging_has_more() {
     let testone = ApiResponsePaging {
         total: 157,
         per_page: 30,

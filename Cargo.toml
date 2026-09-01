@@ -45,4 +45,5 @@ tokio = { version = "1.48.0", features = ["rt", "macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.17", features = ["io-util"] }
 tokio-util = { version = "0.7.17", features = ["io-util", "futures-io"] }
 tracing = "0.1.43"
+url = { version = "2.5.8", features = ["serde"] }
 urlencoding = "2.1.3"

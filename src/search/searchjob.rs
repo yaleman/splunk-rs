@@ -189,7 +189,9 @@ impl SearchJobBuilder {
     ///
     /// Options <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fv2.2Fjobs.2Fexport>
     pub async fn create(self, client: &mut SplunkClient) -> Result<SearchJob, SplunkError> {
-        let endpoint = "/services/search/v2/jobs/export";
+        let url = client
+            .serverconfig
+            .get_url("/services/search/v2/jobs/export")?;
         let mut payload: HashMap<&str, String> = HashMap::new();
 
         self.extra_options.iter().for_each(|(key, value)| {
@@ -232,7 +234,7 @@ impl SearchJobBuilder {
 
         debug!("Payload: {:?}", payload);
 
-        let creation_response = match client.do_post(endpoint, payload).await {
+        let creation_response = match client.do_post(url, payload).await {
             Err(err) => return Err(SplunkError::SearchCreationFailed(format!("{:?}", err))),
             Ok(val) => val,
         };
