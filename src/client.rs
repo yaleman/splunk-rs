@@ -10,7 +10,6 @@ use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, COOKIE};
 use reqwest::{Client, Response, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 
 /// Build a [`Client`] with the auth session's credentials baked in as default headers,
 /// so callers don't need to attach `Authorization`/`Cookie` headers on every request.
@@ -319,17 +318,5 @@ impl SplunkClient {
         }
 
         Ok(results)
-    }
-}
-
-/// Takes a HashMap of key/value pairs to add to the URL and adds the query values to the endpoint
-pub fn add_query_params_to_endpoint(endpoint: &mut String, params: &HashMap<&str, impl ToString>) {
-    if !params.is_empty() {
-        endpoint.push('?');
-        let param_strings: Vec<String> = params
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, urlencoding::Encoded(v.to_string())))
-            .collect();
-        endpoint.push_str(&param_strings.join("&"));
     }
 }

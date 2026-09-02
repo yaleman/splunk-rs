@@ -12,14 +12,14 @@ homepage = "https://github.com/yaleman/splunk-rs"
 cli = ["clap"]
 test_ci = []   # Used when in CI mode, to skip tests
 
-[[bin]]
-name = "splunk_file_to_hec"
-path = "src/bin/file_to_hec.rs"
+[[example]]
+name = "file_to_hec"
+path = "examples/file_to_hec.rs"
 required-features = ["cli"]
 
-[[bin]]
-name = "splunk_pipe_to_hec"
-path = "src/bin/pipe_to_hec.rs"
+[[example]]
+name = "pipe_to_hec"
+path = "examples/pipe_to_hec.rs"
 required-features = ["cli"]
 
 [dependencies]
