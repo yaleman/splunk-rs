@@ -49,11 +49,7 @@ pub mod responses {
     impl ApiResponsePaging {
         /// Is there more pages?
         pub fn has_more(&self) -> bool {
-            if self.offset > self.total {
-                false
-            } else {
-                (self.total - self.per_page) > self.offset
-            }
+            self.offset.saturating_add(self.per_page) < self.total
         }
     }
 
