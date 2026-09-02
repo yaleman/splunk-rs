@@ -1,15 +1,17 @@
+//! HEC integration tests
+//!
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{json, Value};
 
-use crate::errors::SplunkError;
+use splunk::errors::SplunkError;
+use splunk::hec::HecClient;
+use splunk::server_config::{ServerConfig, ServerConfigType};
 
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
 async fn test_hec_endpoint_health() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
-
     let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
     let result = client.get_health().await?;
 
@@ -20,9 +22,6 @@ async fn test_hec_endpoint_health() -> Result<(), SplunkError> {
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn test_hec_endpoint_health_ack() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
-
     let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     let result = client.get_health_ack().await?;
@@ -34,13 +33,6 @@ async fn test_hec_endpoint_health_ack() -> Result<(), SplunkError> {
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn send_test_data() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-
-    use serde_json::json;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    use crate::{ServerConfig, ServerConfigType};
-
     let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     let now = SystemTime::now();
@@ -61,9 +53,7 @@ struct TestEvent {
     message: String,
 }
 
-#[cfg(test)]
 impl TestEvent {
-    #[cfg(test)]
     fn new(test_name: &str, message: &str) -> Self {
         let now = SystemTime::now();
         Self {
@@ -86,10 +76,6 @@ impl From<TestEvent> for Value {
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-
-    use crate::{ServerConfig, ServerConfigType};
-
     let mut client =
         HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
@@ -106,9 +92,6 @@ async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
 async fn send_with_custom_useragent() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
-
     let mut client =
         HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 

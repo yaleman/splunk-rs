@@ -12,14 +12,14 @@ homepage = "https://github.com/yaleman/splunk-rs"
 cli = ["clap"]
 test_ci = []   # Used when in CI mode, to skip tests
 
-[[bin]]
-name = "splunk_file_to_hec"
-path = "src/bin/file_to_hec.rs"
+[[example]]
+name = "file_to_hec"
+path = "examples/file_to_hec.rs"
 required-features = ["cli"]
 
-[[bin]]
-name = "splunk_pipe_to_hec"
-path = "src/bin/pipe_to_hec.rs"
+[[example]]
+name = "pipe_to_hec"
+path = "examples/pipe_to_hec.rs"
 required-features = ["cli"]
 
 [dependencies]
@@ -45,4 +45,5 @@ tokio = { version = "1.48.0", features = ["rt", "macros", "rt-multi-thread"] }
 tokio-stream = { version = "0.1.17", features = ["io-util"] }
 tokio-util = { version = "0.7.17", features = ["io-util", "futures-io"] }
 tracing = "0.1.43"
+url = { version = "2.5.8", features = ["serde"] }
 urlencoding = "2.1.3"
