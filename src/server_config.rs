@@ -236,6 +236,12 @@ impl ServerConfigBuilder {
         self
     }
 
+    /// Set the connection timeout in seconds
+    pub fn with_connection_timeout(mut self, timeout: u16) -> Self {
+        self.connection_timeout = timeout;
+        self
+    }
+
     /// Grabs a [ServerConfigBuilder] from environment variables, ready for further overrides
     /// before calling [`ServerConfigBuilder::build`].
     pub fn try_from_env(configtype: ServerConfigType) -> Result<ServerConfigBuilder, SplunkError> {
