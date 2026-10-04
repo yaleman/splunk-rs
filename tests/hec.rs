@@ -3,31 +3,63 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Value};
+use httpmock::MockServer;
+use serde_json::json;
 
 use splunk::errors::SplunkError;
 use splunk::hec::HecClient;
 use splunk::server_config::{ServerConfig, ServerConfigType};
 
 #[tokio::test]
-#[cfg_attr(feature = "test_ci", ignore)]
-async fn test_hec_endpoint_health() -> Result<(), SplunkError> {
-    let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
-    let result = client.get_health().await?;
+async fn test_hec_endpoint_health() {
+    let server = MockServer::start();
+    let health_mock = server.mock(|when, then| {
+        when.method("GET").path("/services/collector/health");
+        then.status(200)
+            .header("content-type", "application/json; charset=UTF-8")
+            .json_body(json!({"text":"HEC is healthy","code":17}));
+    });
+
+    let server_config = ServerConfig::builder(server.host())
+        .with_port(server.port())
+        .use_tls(false)
+        .with_token("no-token-needed".to_string())
+        .build()
+        .expect("Failed to build server config");
+    let client = HecClient::with_serverconfig(server_config);
+    let result = client.get_health().await.expect("Failed to get health");
+
+    health_mock.assert();
 
     eprintln!("result: {:?}", result);
-    Ok(())
 }
 
-#[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn test_hec_endpoint_health_ack() -> Result<(), SplunkError> {
-    let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
+async fn test_hec_endpoint_health_ack() {
+    let server = MockServer::start();
+    let health_mock = server.mock(|when, then| {
+        when.method("GET")
+            .path("/services/collector/health")
+            .query_param_matches("ack", "true");
+        then.status(200)
+            .header("content-type", "application/json; charset=UTF-8")
+            .json_body(json!({"text":"HEC is healthy","code":17}));
+    });
+    let server_config = ServerConfig::builder(server.host())
+        .with_port(server.port())
+        .use_tls(false)
+        .with_token("no-token-needed".to_string())
+        .build()
+        .expect("Failed to build server config");
+    let client = HecClient::with_serverconfig(server_config);
 
-    let result = client.get_health_ack().await?;
+    let result = client
+        .get_health_ack()
+        .await
+        .expect("Failed to get health ack");
+    health_mock.assert();
 
     eprintln!("result: {:?}", result);
-    Ok(())
 }
 
 #[cfg_attr(feature = "test_ci", ignore)]
@@ -64,12 +96,6 @@ impl TestEvent {
                 .as_secs(),
             message: message.to_string(),
         }
-    }
-}
-
-impl From<TestEvent> for Value {
-    fn from(value: TestEvent) -> Self {
-        json!(value)
     }
 }
 
