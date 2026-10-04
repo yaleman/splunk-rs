@@ -122,7 +122,12 @@ pub struct SearchJobBuilder {
     id: Option<String>,
     /// If you want to specify extra search options - see the details under `POST` in <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fjobs>
     extra_options: HashMap<String, String>,
-    timeout: u32,
+
+    /// Lifetime of the search job in seconds. Set to 0 for no timeout, defaults to 24 hours (86400 seconds).
+    job_timeout: u32,
+
+    /// Network request timeout in seconds. Set to 0 for no timeout - defaults to 10 minutes (600  seconds).
+    request_timeout: u16,
 }
 
 impl Default for SearchJobBuilder {
@@ -146,7 +151,8 @@ impl Default for SearchJobBuilder {
             force_bundle_replication: false,
             id: None,
             extra_options: default_extra_options,
-            timeout: 86400,
+            job_timeout: 86400,
+            request_timeout: 600,
         }
     }
 }
@@ -189,7 +195,9 @@ impl SearchJobBuilder {
     ///
     /// Options <https://docs.splunk.com/Documentation/Splunk/9.0.4/RESTREF/RESTsearch#search.2Fv2.2Fjobs.2Fexport>
     pub async fn create(self, client: &mut SplunkClient) -> Result<SearchJob, SplunkError> {
-        let endpoint = "/services/search/v2/jobs/export";
+        let url = client
+            .serverconfig
+            .get_url("/services/search/v2/jobs/export")?;
         let mut payload: HashMap<&str, String> = HashMap::new();
 
         self.extra_options.iter().for_each(|(key, value)| {
@@ -210,7 +218,7 @@ impl SearchJobBuilder {
         }
         payload.insert("earliest_time", self.earliest_time.clone());
         payload.insert("latest_time", self.latest_time.clone());
-        payload.insert("timeout", self.timeout.to_string());
+        payload.insert("timeout", self.job_timeout.to_string());
         payload.insert(
             "enable_lookups",
             self.enable_lookups.to_string().to_ascii_lowercase(),
@@ -232,7 +240,10 @@ impl SearchJobBuilder {
 
         debug!("Payload: {:?}", payload);
 
-        let creation_response = match client.do_post(endpoint, payload).await {
+        let creation_response = match client
+            .do_post(url, payload, Some(self.request_timeout))
+            .await
+        {
             Err(err) => return Err(SplunkError::SearchCreationFailed(format!("{:?}", err))),
             Ok(val) => val,
         };
@@ -292,6 +303,14 @@ impl SearchJobBuilder {
     pub fn latest_time(self, latest_time: impl Into<String>) -> Self {
         Self {
             latest_time: latest_time.into(),
+            ..self
+        }
+    }
+
+    /// Set the connection timeout for the search job in seconds. Set to 0 for no timeout.
+    pub fn request_timeout(self, request_timeout: u16) -> Self {
+        Self {
+            request_timeout,
             ..self
         }
     }

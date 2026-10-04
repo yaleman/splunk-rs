@@ -1,0 +1,30 @@
+
+[env]
+_.file = { path = ".envrc", redact = true }
+
+[tasks.fmt]
+run = "cargo fmt"
+
+[tasks.clippy]
+depends = ["fmt"]
+run = "cargo clippy --all-targets --all-features --quiet -- -D warnings"
+
+[tasks.test]
+depends = ["fmt"]
+run = "cargo test --quiet"
+
+[tasks.publish_check]
+run = "cargo publish --quiet --dry-run --allow-dirty"
+
+[tasks.check]
+depends = ["clippy", "test", "publish_check"]
+
+
+[tasks.pre_release]
+depends = ["check"]
+run = [
+    "cargo build",
+    "cargo build --release",
+    "cargo test --release",
+    "cargo audit",
+]

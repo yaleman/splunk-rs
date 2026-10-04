@@ -1,46 +1,70 @@
+//! HEC integration tests
+//!
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{json, Value};
+use httpmock::MockServer;
+use serde_json::json;
 
-use crate::errors::SplunkError;
+use splunk::errors::SplunkError;
+use splunk::hec::HecClient;
+use splunk::server_config::{ServerConfig, ServerConfigType};
 
 #[tokio::test]
-#[cfg_attr(feature = "test_ci", ignore)]
-async fn test_hec_endpoint_health() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
+async fn test_hec_endpoint_health() {
+    let server = MockServer::start();
+    let health_mock = server.mock(|when, then| {
+        when.method("GET").path("/services/collector/health");
+        then.status(200)
+            .header("content-type", "application/json; charset=UTF-8")
+            .json_body(json!({"text":"HEC is healthy","code":17}));
+    });
 
-    let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
-    let result = client.get_health().await?;
+    let server_config = ServerConfig::builder(server.host())
+        .with_port(server.port())
+        .use_tls(false)
+        .with_token("no-token-needed".to_string())
+        .build()
+        .expect("Failed to build server config");
+    let client = HecClient::with_serverconfig(server_config);
+    let result = client.get_health().await.expect("Failed to get health");
+
+    health_mock.assert();
 
     eprintln!("result: {:?}", result);
-    Ok(())
 }
 
-#[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
-async fn test_hec_endpoint_health_ack() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
+async fn test_hec_endpoint_health_ack() {
+    let server = MockServer::start();
+    let health_mock = server.mock(|when, then| {
+        when.method("GET")
+            .path("/services/collector/health")
+            .query_param_matches("ack", "true");
+        then.status(200)
+            .header("content-type", "application/json; charset=UTF-8")
+            .json_body(json!({"text":"HEC is healthy","code":17}));
+    });
+    let server_config = ServerConfig::builder(server.host())
+        .with_port(server.port())
+        .use_tls(false)
+        .with_token("no-token-needed".to_string())
+        .build()
+        .expect("Failed to build server config");
+    let client = HecClient::with_serverconfig(server_config);
 
-    let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
-
-    let result = client.get_health_ack().await?;
+    let result = client
+        .get_health_ack()
+        .await
+        .expect("Failed to get health ack");
+    health_mock.assert();
 
     eprintln!("result: {:?}", result);
-    Ok(())
 }
 
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn send_test_data() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-
-    use serde_json::json;
-    use std::time::{SystemTime, UNIX_EPOCH};
-
-    use crate::{ServerConfig, ServerConfigType};
-
     let client = HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
     let now = SystemTime::now();
@@ -61,9 +85,7 @@ struct TestEvent {
     message: String,
 }
 
-#[cfg(test)]
 impl TestEvent {
-    #[cfg(test)]
     fn new(test_name: &str, message: &str) -> Self {
         let now = SystemTime::now();
         Self {
@@ -77,19 +99,9 @@ impl TestEvent {
     }
 }
 
-impl From<TestEvent> for Value {
-    fn from(value: TestEvent) -> Self {
-        json!(value)
-    }
-}
-
 #[cfg_attr(feature = "test_ci", ignore)]
 #[tokio::test]
 async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-
-    use crate::{ServerConfig, ServerConfigType};
-
     let mut client =
         HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 
@@ -106,9 +118,6 @@ async fn send_queued_multi_overized_batch() -> Result<(), SplunkError> {
 #[tokio::test]
 #[cfg_attr(feature = "test_ci", ignore)]
 async fn send_with_custom_useragent() -> Result<(), SplunkError> {
-    use crate::hec::HecClient;
-    use crate::{ServerConfig, ServerConfigType};
-
     let mut client =
         HecClient::with_serverconfig(ServerConfig::try_from_env(ServerConfigType::Hec)?);
 

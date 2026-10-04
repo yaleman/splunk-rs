@@ -1,6 +1,19 @@
+//! Pipe stdin to HTTP Event Collector!
+
+#![deny(warnings)]
+#![warn(unused_extern_crates)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::unreachable)]
+#![deny(clippy::await_holding_lock)]
+#![deny(clippy::needless_pass_by_value)]
+#![deny(clippy::trivially_copy_pass_by_ref)]
+
 use std::io;
 
-/// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
 use splunk::errors::SplunkError;
@@ -31,25 +44,28 @@ async fn main() -> Result<(), SplunkError> {
     let cli = Cli::parse();
 
     // in case they're using environment variables
-    let serverconfig = splunk::ServerConfig::try_from_env(splunk::ServerConfigType::Hec)?;
-
-    // set up the HecClient
-    let mut hec = HecClient::with_serverconfig(serverconfig);
+    let mut serverconfig = splunk::server_config::ServerConfigBuilder::try_from_env(
+        splunk::server_config::ServerConfigType::Hec,
+    )?;
 
     if let Some(port) = cli.port {
-        hec.serverconfig = hec.serverconfig.with_port(port);
+        serverconfig = serverconfig.with_port(port);
     }
     if let Some(hostname) = cli.hostname {
-        hec.serverconfig = hec.serverconfig.with_hostname(hostname);
+        serverconfig = serverconfig.with_hostname(hostname);
     }
+
+    // set up the HecClient
+    let mut hec = HecClient::with_serverconfig(serverconfig.build()?);
+
     if let Some(index) = cli.index {
-        hec = hec.with_index(index);
+        hec = hec.with_index(&index);
     }
     if let Some(val) = cli.source {
-        hec = hec.with_source(val)
+        hec = hec.with_source(&val)
     };
     if let Some(val) = cli.sourcetype {
-        hec = hec.with_sourcetype(val)
+        hec = hec.with_sourcetype(&val)
     };
 
     if cli.debug.unwrap_or_default() {
@@ -64,7 +80,7 @@ async fn main() -> Result<(), SplunkError> {
         .map_err(|err| SplunkError::Generic(err.to_string()))?
         > 0
     {
-        if buffer.trim().len() != 0 {
+        if !buffer.trim().is_empty() {
             let data = json!(buffer.trim());
 
             if cli.debug.unwrap_or_default() {

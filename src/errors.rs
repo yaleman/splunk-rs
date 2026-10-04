@@ -4,25 +4,32 @@ use std::{num::ParseIntError, time::SystemTimeError};
 
 use reqwest::header::InvalidHeaderValue;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 /// Error messages and things
 pub enum SplunkError {
+    #[error("Generic error: {0}")]
     /// Generic errors not handled by something else
     Generic(String),
+    #[error("Search creation failed: {0}")]
     /// We failed to create a search
     SearchCreationFailed(String),
+    #[error("Not authenticated")]
     /// You haven't authenticated yet!
     NotAuthenticated,
 
+    #[error("Serde error: {0}")]
     /// When `serde_json` doesn't like something you did
     SerdeError(serde_json::Error),
 
+    #[error("Reqwest error: {0}")]
     /// When `reqwest` doesn't like something you did
     ReqwestError(reqwest::Error),
 
+    #[error("No auth method selected")]
     /// Didn't select an Auth method
     NoAuthMethodSelected,
 
+    #[error("Invalid auth method: {0}")]
     /// Invalid Auth method selected
     InvalidAuthmethod(&'static str),
 }

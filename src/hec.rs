@@ -13,9 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::sync::RwLock;
 
-use crate::client::AuthenticationMethod;
 use crate::errors::SplunkError;
-use crate::ServerConfig;
+use crate::models::AuthenticationMethod;
+use crate::server_config::ServerConfig;
 
 /// HEC Client
 #[derive(Debug)]
@@ -31,26 +31,24 @@ pub struct HecClient {
     queue: Arc<RwLock<VecDeque<Box<Value>>>>,
     /// The user-agent string to send, defaults to `splunk-rs <version>`
     useragent: String,
-    /// Connection timeout, defaults to 60 seconds
-    pub timeout: u64,
 }
 
 impl Default for HecClient {
     fn default() -> Self {
+        // localhost:8088 over https is a hardcoded, known-good config, so building it can't
+        // actually fail.
+        #[allow(clippy::expect_used)]
+        let serverconfig = ServerConfig::builder("localhost")
+            .with_port(8088)
+            .build()
+            .expect("the default HEC ServerConfig must always be constructible");
         Self {
-            serverconfig: ServerConfig {
-                hostname: "localhost".to_string(),
-                port: 8088,
-                verify_tls: true,
-                auth_method: crate::client::AuthenticationMethod::Unknown,
-                ..Default::default()
-            },
+            serverconfig,
             index: None,
             sourcetype: None,
             source: None,
             queue: Arc::new(RwLock::new(VecDeque::new())),
             useragent: format!("splunk-rs {}", env!("CARGO_PKG_VERSION")),
-            timeout: 60,
         }
     }
 }
@@ -68,14 +66,15 @@ pub struct HecHealthResult {
 
 impl HecClient {
     /// Create a new HEC client, specifying the token and hostname. Defaults to port 8088
-    pub fn new(token: &str, hostname: &str) -> Self {
-        let serverconfig = ServerConfig::new(hostname.to_string())
+    pub fn new(token: &str, hostname: &str) -> Result<Self, SplunkError> {
+        let serverconfig = ServerConfig::builder(hostname)
             .with_token(token.to_string())
-            .with_port(8088);
-        Self {
+            .with_port(8088)
+            .build()?;
+        Ok(Self {
             serverconfig,
             ..Default::default()
-        }
+        })
     }
 
     /// Start the HEC Client with a given server config
@@ -172,12 +171,9 @@ impl HecClient {
         }
 
         // Send the POST request with the payload and headers to the Splunk HEC endpoint
-        let url = format!(
-            "https://{}:{}/services/collector",
-            self.serverconfig.hostname, self.serverconfig.port
-        );
+        let url = self.serverconfig.get_url("/services/collector")?;
         let request_builder = client
-            .post(&url)
+            .post(url)
             .headers(headers)
             .body(serde_json::to_string(&payload)?);
 
@@ -191,7 +187,9 @@ impl HecClient {
     /// Creates the reqwest client with a consistent configuration
     fn get_client(&self) -> Result<Client, SplunkError> {
         let mut client = Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout))
+            .timeout(std::time::Duration::from_secs(
+                self.serverconfig.request_timeout() as u64,
+            ))
             .user_agent(&self.useragent)
             .redirect(Policy::none());
 
@@ -251,11 +249,8 @@ impl HecClient {
         let payload = payload_vec.join("\n");
 
         // Send the POST request with the payload and headers to the Splunk HEC endpoint
-        let url = format!(
-            "https://{}:{}/services/collector",
-            self.serverconfig.hostname, self.serverconfig.port
-        );
-        let request_builder = client.post(&url).headers(headers).body(payload);
+        let url = self.serverconfig.get_url("/services/collector")?;
+        let request_builder = client.post(url).headers(headers).body(payload);
 
         let result = request_builder.send().await?;
 

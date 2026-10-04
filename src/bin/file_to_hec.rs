@@ -1,6 +1,19 @@
+//! Yeet files to the HTTP Event Collector!
+
+#![deny(warnings)]
+#![warn(unused_extern_crates)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::unreachable)]
+#![deny(clippy::await_holding_lock)]
+#![deny(clippy::needless_pass_by_value)]
+#![deny(clippy::trivially_copy_pass_by_ref)]
+
 use std::io::Read;
 
-/// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
 use splunk::errors::SplunkError;
@@ -36,7 +49,8 @@ async fn main() -> Result<(), SplunkError> {
     let cli = Cli::parse();
 
     // in case they're using environment variables
-    let mut serverconfig = splunk::ServerConfig::default().with_verify_tls(!cli.no_verify_tls);
+    let mut serverconfig =
+        splunk::server_config::ServerConfigBuilder::default().with_verify_tls(!cli.no_verify_tls);
     serverconfig = match cli.token {
         Some(token) => serverconfig.with_token(token),
         None => serverconfig,
@@ -53,18 +67,18 @@ async fn main() -> Result<(), SplunkError> {
     };
 
     // set up the HecClient
-    let mut hec = HecClient::with_serverconfig(serverconfig);
+    let mut hec = HecClient::with_serverconfig(serverconfig.build()?);
 
     if let Some(index) = cli.index {
-        hec = hec.with_index(index);
+        hec = hec.with_index(&index);
     }
     if let Some(val) = cli.source {
-        hec = hec.with_source(val)
+        hec = hec.with_source(&val)
     } else {
         hec = hec.with_source(&cli.filename);
     };
     if let Some(val) = cli.sourcetype {
-        hec = hec.with_sourcetype(val)
+        hec = hec.with_sourcetype(&val)
     };
 
     eprintln!("{:?}", hec);
