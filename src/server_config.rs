@@ -170,7 +170,7 @@ impl ServerConfigBuilder {
     pub fn build(self) -> Result<ServerConfig, SplunkError> {
         let scheme = if self.use_tls { "https" } else { "http" };
 
-        let url = Url::from_str(&format!("{}://{}:{}", scheme, &self.hostname, self.port))
+        let url = Url::from_str(&format!("{}://{}:{}", scheme, self.hostname, self.port))
             .map_err(|e| SplunkError::Generic(format!("Failed to build URL: {e:?}")))?;
 
         Ok(ServerConfig {

@@ -50,6 +50,7 @@ fn build_client(
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(try_from = "SavedSplunkClient")]
 /// Client for splunk enterprise/cloud API things, login, search, manipulate config items etc.
 pub struct SplunkClient {
     #[serde(flatten)]
@@ -61,24 +62,22 @@ pub struct SplunkClient {
     client: Client,
 }
 
-impl Default for SplunkClient {
-    fn default() -> Self {
+impl SplunkClient {
+    /// Create a new `SplunkClient` with the default server configuration and unset authentication session mode.
+    pub fn new() -> Result<Self, SplunkError> {
         let serverconfig = ServerConfig::default();
         let client = ClientBuilder::new()
             .timeout(std::time::Duration::from_secs(
                 serverconfig.connection_timeout() as u64,
             ))
-            .build()
-            .expect("Failed to build client, this is a bug!");
-        Self {
+            .build()?;
+        Ok(Self {
             serverconfig,
             auth_session_mode: AuthenticatedSessionMode::Unset,
             client,
-        }
+        })
     }
-}
 
-impl SplunkClient {
     /// set the config on build
     pub fn with_config(self, serverconfig: ServerConfig) -> Result<Self, SplunkError> {
         let client = build_client(&serverconfig, &self.auth_session_mode)?;
@@ -329,5 +328,27 @@ impl SplunkClient {
         }
 
         Ok(results)
+    }
+}
+
+#[derive(Deserialize)]
+/// A saved representation of a Splunk client, used for deserialization
+struct SavedSplunkClient {
+    #[serde(flatten)]
+    serverconfig: ServerConfig,
+    auth_session_mode: AuthenticatedSessionMode,
+}
+
+impl TryFrom<SavedSplunkClient> for SplunkClient {
+    type Error = SplunkError;
+
+    fn try_from(stored: SavedSplunkClient) -> Result<Self, Self::Error> {
+        let client = build_client(&stored.serverconfig, &stored.auth_session_mode)?;
+
+        Ok(Self {
+            client,
+            serverconfig: stored.serverconfig,
+            auth_session_mode: stored.auth_session_mode,
+        })
     }
 }

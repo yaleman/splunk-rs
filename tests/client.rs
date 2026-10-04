@@ -41,7 +41,7 @@ async fn test_get_saved_searches() -> Result<(), SplunkError> {
         .with_connection_timeout(5)
         .build()?;
 
-    let mut client = SplunkClient::default().with_config(serverconfig)?;
+    let mut client = SplunkClient::new()?.with_config(serverconfig)?;
 
     client.login().await?;
 
@@ -171,7 +171,7 @@ async fn test_login() -> Result<(), SplunkError> {
             .with_username_password(username, password)
             .build()?;
 
-        let mut client = SplunkClient::default().with_config(serverconfig)?;
+        let mut client = SplunkClient::new()?.with_config(serverconfig)?;
 
         if should_work {
             client.login().await.unwrap_or_else(|_| {
