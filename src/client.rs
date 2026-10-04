@@ -52,7 +52,7 @@ pub struct SplunkClient {
     /// server configuration object
     pub serverconfig: ServerConfig,
     /// what mode we're using for authentication (token, cookie etc)
-    pub auth_session_mode: AuthenticatedSessionMode,
+    auth_session_mode: AuthenticatedSessionMode,
     #[serde(skip)]
     client: Client,
 }
