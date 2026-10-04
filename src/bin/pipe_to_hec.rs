@@ -1,6 +1,19 @@
+//! Pipe stdin to HTTP Event Collector!
+
+#![deny(warnings)]
+#![warn(unused_extern_crates)]
+#![deny(clippy::todo)]
+#![deny(clippy::unimplemented)]
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![deny(clippy::unreachable)]
+#![deny(clippy::await_holding_lock)]
+#![deny(clippy::needless_pass_by_value)]
+#![deny(clippy::trivially_copy_pass_by_ref)]
+
 use std::io;
 
-/// Pipe stdin to HTTP Event Collector!
 use clap::*;
 use serde_json::json;
 use splunk::errors::SplunkError;
@@ -67,7 +80,7 @@ async fn main() -> Result<(), SplunkError> {
         .map_err(|err| SplunkError::Generic(err.to_string()))?
         > 0
     {
-        if buffer.trim().len() != 0 {
+        if !buffer.trim().is_empty() {
             let data = json!(buffer.trim());
 
             if cli.debug.unwrap_or_default() {

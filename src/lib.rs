@@ -1,4 +1,5 @@
 //! A start on implementing Splunk-SDK-like-things
+
 #![warn(missing_docs)]
 #![deny(warnings)]
 #![warn(unused_extern_crates)]

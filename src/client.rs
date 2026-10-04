@@ -107,6 +107,7 @@ impl SplunkClient {
         &mut self,
         url: Url,
         payload: impl Serialize,
+        request_timeout: Option<u16>,
     ) -> Result<Response, SplunkError> {
         if matches!(self.auth_session_mode, AuthenticatedSessionMode::Unset) {
             return Err(SplunkError::NotAuthenticated);
@@ -115,6 +116,9 @@ impl SplunkClient {
         self.client
             .post(url)
             .form(&payload)
+            .timeout(std::time::Duration::from_secs(
+                request_timeout.unwrap_or(self.serverconfig.request_timeout()) as u64,
+            ))
             .send()
             .await
             .map(|val| val.error_for_status().map_err(SplunkError::ReqwestError))?
