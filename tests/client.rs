@@ -54,7 +54,7 @@ async fn test_get_saved_searches() -> Result<(), SplunkError> {
         env!("CARGO_MANIFEST_DIR").to_string() + "/tests/saved-searches-mock-response.json",
     )
     .expect("Failed to read mock response file");
-    assert!(mock_body.len() > 0);
+    assert!(!mock_body.is_empty(), "Mock body should not be empty");
     let mock_searches = server.mock(|when, then| {
         when.method(GET).path("/services/saved/searches");
         then.status(200)
@@ -174,10 +174,12 @@ async fn test_login() -> Result<(), SplunkError> {
         let mut client = SplunkClient::default().with_config(serverconfig)?;
 
         if should_work {
-            client.login().await.expect(&format!(
-                "Failed with username: {} and password: {}",
-                username, password
-            ));
+            client.login().await.unwrap_or_else(|_| {
+                panic!(
+                    "Failed with username: {} and password: {}",
+                    username, password
+                )
+            });
         } else {
             assert!(
                 client.login().await.is_err(),
