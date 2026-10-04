@@ -38,7 +38,7 @@ async fn test_get_saved_searches() -> Result<(), SplunkError> {
         .with_hostname(server.host())
         .with_port(server.port())
         .with_username_password("admin", "Admin1234!")
-        .with_connection_timeout(5)
+        .with_request_timeout(5)
         .build()?;
 
     let mut client = SplunkClient::new()?.with_config(serverconfig)?;

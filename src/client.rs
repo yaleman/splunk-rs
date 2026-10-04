@@ -43,7 +43,7 @@ fn build_client(
     }
     builder
         .timeout(std::time::Duration::from_secs(
-            server_config.connection_timeout() as u64,
+            server_config.request_timeout() as u64,
         ))
         .build()
         .map_err(SplunkError::ReqwestError)
@@ -68,7 +68,7 @@ impl SplunkClient {
         let serverconfig = ServerConfig::default();
         let client = ClientBuilder::new()
             .timeout(std::time::Duration::from_secs(
-                serverconfig.connection_timeout() as u64,
+                serverconfig.request_timeout() as u64,
             ))
             .build()?;
         Ok(Self {

@@ -188,7 +188,7 @@ impl HecClient {
     fn get_client(&self) -> Result<Client, SplunkError> {
         let mut client = Client::builder()
             .timeout(std::time::Duration::from_secs(
-                self.serverconfig.connection_timeout() as u64,
+                self.serverconfig.request_timeout() as u64,
             ))
             .user_agent(&self.useragent)
             .redirect(Policy::none());

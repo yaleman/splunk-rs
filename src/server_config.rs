@@ -18,7 +18,7 @@ pub struct ServerConfig {
     url: Url,
     pub(crate) verify_tls: bool,
     pub(crate) auth_method: AuthenticationMethod,
-    connection_timeout: u16,
+    request_timeout: u16,
 }
 
 impl Default for ServerConfig {
@@ -38,9 +38,9 @@ impl ServerConfig {
         ServerConfigBuilder::new(hostname)
     }
 
-    /// Get the connection timeout for this server config, in seconds.
-    pub fn connection_timeout(&self) -> u16 {
-        self.connection_timeout
+    /// Get the request timeout for this server config, in seconds.
+    pub fn request_timeout(&self) -> u16 {
+        self.request_timeout
     }
 
     /// The base URL this config connects to (scheme + host + port). This is fixed at build
@@ -140,7 +140,7 @@ pub struct ServerConfigBuilder {
     verify_tls: bool,
     use_tls: bool,
     auth_method: AuthenticationMethod,
-    connection_timeout: u16,
+    request_timeout: u16,
 }
 
 impl Default for ServerConfigBuilder {
@@ -151,7 +151,7 @@ impl Default for ServerConfigBuilder {
             verify_tls: true,
             use_tls: true,
             auth_method: AuthenticationMethod::Unknown,
-            connection_timeout: 30,
+            request_timeout: 30,
         }
     }
 }
@@ -177,7 +177,7 @@ impl ServerConfigBuilder {
             url,
             verify_tls: self.verify_tls,
             auth_method: self.auth_method,
-            connection_timeout: self.connection_timeout,
+            request_timeout: self.request_timeout,
         })
     }
 
@@ -224,9 +224,9 @@ impl ServerConfigBuilder {
         self
     }
 
-    /// Set the connection timeout in seconds
-    pub fn with_connection_timeout(mut self, timeout: u16) -> Self {
-        self.connection_timeout = timeout;
+    /// Set the request timeout in seconds
+    pub fn with_request_timeout(mut self, timeout: u16) -> Self {
+        self.request_timeout = timeout;
         self
     }
 
