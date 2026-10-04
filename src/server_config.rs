@@ -163,27 +163,10 @@ impl ServerConfigBuilder {
     /// Resolve this builder into a [`ServerConfig`], baking the hostname/port/scheme into a
     /// single immutable URL.
     pub fn build(self) -> Result<ServerConfig, SplunkError> {
-        // Start from an already-"special" scheme (http/https/ws/wss/ftp/file) - `Url::set_scheme`
-        // refuses to cross the special/non-special boundary, so a placeholder like `a://a.a`
-        // can never be switched to `http`/`https`.
-        let mut url = Url::from_str("http://a.a")
+        let scheme = if self.use_tls { "https" } else { "http" };
+
+        let url = Url::from_str(&format!("{}://{}:{}", scheme, &self.hostname, self.port))
             .map_err(|e| SplunkError::Generic(format!("Failed to build URL: {e:?}")))?;
-        url.set_host(Some(&self.hostname))
-            .map_err(|e| SplunkError::Generic(format!("Failed to set host: {e:?}")))?;
-
-        match self.use_tls {
-            true => url
-                .set_scheme("https")
-                .map_err(|_| SplunkError::Generic("Could not set scheme".to_string()))?,
-            false => url
-                .set_scheme("http")
-                .map_err(|_| SplunkError::Generic("Could not set scheme".to_string()))?,
-        };
-
-        if (self.verify_tls && self.port != 443) || (!self.verify_tls && self.port != 80) {
-            url.set_port(Some(self.port))
-                .map_err(|_| SplunkError::Generic("Could not set port".to_string()))?;
-        }
 
         Ok(ServerConfig {
             url,

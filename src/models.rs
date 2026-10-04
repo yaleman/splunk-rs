@@ -108,7 +108,7 @@ pub enum AuthenticationMethod {
     Unknown,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 /// the current auth mode - you can auth with username/password then get a cookie and go from there
 pub enum AuthenticatedSessionMode {
     /// cookie auth
