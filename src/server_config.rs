@@ -38,6 +38,11 @@ impl ServerConfig {
         ServerConfigBuilder::new(hostname)
     }
 
+    /// Get the connection timeout for this server config, in seconds.
+    pub fn connection_timeout(&self) -> u16 {
+        self.connection_timeout
+    }
+
     /// The base URL this config connects to (scheme + host + port). This is fixed at build
     /// time - to point at a different server, build a new [`ServerConfig`] via
     /// [`ServerConfigBuilder`].

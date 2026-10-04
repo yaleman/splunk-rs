@@ -31,8 +31,6 @@ pub struct HecClient {
     queue: Arc<RwLock<VecDeque<Box<Value>>>>,
     /// The user-agent string to send, defaults to `splunk-rs <version>`
     useragent: String,
-    /// Connection timeout, defaults to 60 seconds
-    pub timeout: u64,
 }
 
 impl Default for HecClient {
@@ -51,7 +49,6 @@ impl Default for HecClient {
             source: None,
             queue: Arc::new(RwLock::new(VecDeque::new())),
             useragent: format!("splunk-rs {}", env!("CARGO_PKG_VERSION")),
-            timeout: 60,
         }
     }
 }
@@ -190,7 +187,9 @@ impl HecClient {
     /// Creates the reqwest client with a consistent configuration
     fn get_client(&self) -> Result<Client, SplunkError> {
         let mut client = Client::builder()
-            .timeout(std::time::Duration::from_secs(self.timeout))
+            .timeout(std::time::Duration::from_secs(
+                self.serverconfig.connection_timeout() as u64,
+            ))
             .user_agent(&self.useragent)
             .redirect(Policy::none());
 

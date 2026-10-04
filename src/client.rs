@@ -7,14 +7,14 @@ use crate::models::responses::ApiResponse;
 use crate::models::{AuthenticatedSessionMode, AuthenticationMethod};
 use crate::server_config::ServerConfig;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, COOKIE};
-use reqwest::{Client, Response, Url};
+use reqwest::{Client, ClientBuilder, Response, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Build a [`Client`] with the auth session's credentials baked in as default headers,
 /// so callers don't need to attach `Authorization`/`Cookie` headers on every request.
 fn build_client(
-    verify_tls: bool,
+    server_config: &ServerConfig,
     auth_session_mode: &AuthenticatedSessionMode,
 ) -> Result<Client, SplunkError> {
     let mut headers = HeaderMap::new();
@@ -38,11 +38,15 @@ fn build_client(
     }
 
     let mut builder = Client::builder().default_headers(headers);
-    if !verify_tls {
+    if !server_config.verify_tls {
         builder = builder.danger_accept_invalid_certs(true);
     }
-
-    builder.build().map_err(SplunkError::ReqwestError)
+    builder
+        .timeout(std::time::Duration::from_secs(
+            server_config.connection_timeout() as u64,
+        ))
+        .build()
+        .map_err(SplunkError::ReqwestError)
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -59,10 +63,17 @@ pub struct SplunkClient {
 
 impl Default for SplunkClient {
     fn default() -> Self {
+        let serverconfig = ServerConfig::default();
+        let client = ClientBuilder::new()
+            .timeout(std::time::Duration::from_secs(
+                serverconfig.connection_timeout() as u64,
+            ))
+            .build()
+            .expect("Failed to build client, this is a bug!");
         Self {
-            serverconfig: ServerConfig::default(),
+            serverconfig,
             auth_session_mode: AuthenticatedSessionMode::Unset,
-            client: Client::new(),
+            client,
         }
     }
 }
@@ -70,7 +81,7 @@ impl Default for SplunkClient {
 impl SplunkClient {
     /// set the config on build
     pub fn with_config(self, serverconfig: ServerConfig) -> Result<Self, SplunkError> {
-        let client = build_client(serverconfig.verify_tls, &self.auth_session_mode)?;
+        let client = build_client(&serverconfig, &self.auth_session_mode)?;
 
         Ok(Self {
             serverconfig,
@@ -183,7 +194,7 @@ impl SplunkClient {
     /// Set the authentication session mode and rebuild the underlying HTTP client so the
     /// bearer token / cookies are baked in as default headers for every subsequent request.
     fn set_auth_session_mode(&mut self, mode: AuthenticatedSessionMode) -> Result<(), SplunkError> {
-        self.client = build_client(self.serverconfig.verify_tls, &mode)?;
+        self.client = build_client(&self.serverconfig, &mode)?;
         self.auth_session_mode = mode;
         Ok(())
     }
